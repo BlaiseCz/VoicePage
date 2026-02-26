@@ -1,0 +1,14 @@
+{
+  "name": "voicepage",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter demo-vanilla dev",
+    "dev:all": "pnpm -r --parallel dev",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "pnpm -r --if-present lint"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

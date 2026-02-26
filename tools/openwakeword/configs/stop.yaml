@@ -1,0 +1,47 @@
+# VoicePage — openWakeWord training config: "stop"
+# Hard interrupt keyword. Requires very low latency + high recall.
+# Use a slightly lower default threshold for faster detection.
+
+keyword: stop
+
+generation:
+  phrases:
+    - "stop"
+  num_samples_per_phrase: 1000  # More samples for critical keyword
+  speaker_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  speed_variations: [0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15, 1.2]
+  tts_models:
+    - en_US-lessac-medium
+    - en_US-libritts_r-medium
+    - en_US-amy-medium
+
+hard_negatives:
+  phrases:
+    - "stock"
+    - "top"
+    - "shop"
+    - "stomp"
+    - "stork"
+    - "store"
+    - "step"
+    - "stab"
+    - "stuff"
+    - "stopped"
+  num_samples_per_phrase: 300
+
+training:
+  model_type: "dnn"
+  epochs: 60  # More epochs for critical keyword
+  batch_size: 256
+  learning_rate: 0.001
+  n_feature_frames: 16
+  negative_data_dir: "../negative_data"
+  augmentation:
+    noise_snr_range: [3, 30]  # Train with more noise for robustness
+    room_impulse_response: true
+    time_shift_ms: 30  # Tighter shift for short keyword
+
+evaluation:
+  threshold: 0.4  # Lower threshold for faster detection
+  max_false_accepts_per_hour: 0.5
+  max_false_reject_rate: 0.03  # Stricter — stop must not miss

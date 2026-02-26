@@ -1,0 +1,128 @@
+# ========================
+# Dependencies
+# ========================
+node_modules/
+.pnpm-store/
+
+# ========================
+# Build artifacts
+# ========================
+dist/
+*.tsbuildinfo
+.vite/
+.cache/
+
+# ========================
+# Model artifacts (large binaries)
+# ========================
+models/**/*.onnx
+models/**/*.pb
+models/**/*.h5
+models/**/*.pt
+models/**/*.bin
+datasets/**/*.wav
+datasets/**/*.mp3
+datasets/**/*.flac
+datasets/**/*.tar
+datasets/**/*.tar.gz
+datasets/**/*.zip
+
+# ========================
+# openWakeWord training outputs
+# ========================
+tools/openwakeword/venv/
+tools/openwakeword/output/
+tools/openwakeword/synthetic_data/
+tools/openwakeword/negative_data/
+tools/openwakeword/logs/
+tools/openwakeword/**/*.onnx
+tools/openwakeword/**/*.npy
+tools/openwakeword/wandb/
+
+# ========================
+# Secrets / API keys / credentials
+# ========================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+*.jks
+*_rsa
+*_ecdsa
+*_ed25519
+*.secret
+credentials.json
+service-account*.json
+token.json
+.npmrc.local
+auth.json
+
+# ========================
+# IDE / Editor
+# ========================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# ========================
+# OS files
+# ========================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.lnk
+
+# ========================
+# Logs / debug
+# ========================
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+lerna-debug.log*
+logs/
+
+# ========================
+# Test / coverage
+# ========================
+coverage/
+.nyc_output/
+*.lcov
+
+# ========================
+# Python (openWakeWord tooling)
+# ========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.eggs/
+*.whl
+pip-log.txt
+pip-delete-this-directory.txt
+.Python
+venv/
+.venv/
+ENV/
+env/
+
+# ========================
+# Misc
+# ========================
+*.bak
+*.tmp
+*.temp
+.turbo/

@@ -1,0 +1,58 @@
+# VoicePage — openWakeWord training config: "open"
+# Primary trigger keyword. Must tolerate trailing speech (e.g., "open settings").
+
+keyword: open
+
+generation:
+  phrases:
+    - "open"
+    - "open settings"
+    - "open billing"
+    - "open dashboard"
+    - "open profile"
+    - "open help"
+    - "open menu"
+    - "open notifications"
+    - "open search"
+    - "open home"
+  num_samples_per_phrase: 500
+  speaker_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  speed_variations: [0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15]
+  # Piper TTS voice models (en-US)
+  tts_models:
+    - en_US-lessac-medium
+    - en_US-libritts_r-medium
+    - en_US-amy-medium
+
+hard_negatives:
+  # Words that sound similar but should NOT trigger
+  phrases:
+    - "often"
+    - "oven"
+    - "opera"
+    - "over"
+    - "opinion"
+    - "opening"  # noun usage
+    - "opponent"
+  num_samples_per_phrase: 200
+
+training:
+  model_type: "dnn"  # dnn or rnn
+  epochs: 50
+  batch_size: 256
+  learning_rate: 0.001
+  # Feature frames expected by openWakeWord
+  n_feature_frames: 16
+  # Negative data directory (shared across all keywords)
+  negative_data_dir: "../negative_data"
+  # Augmentation
+  augmentation:
+    noise_snr_range: [5, 30]
+    room_impulse_response: true
+    time_shift_ms: 50
+
+evaluation:
+  threshold: 0.5
+  # VoicePage targets
+  max_false_accepts_per_hour: 0.5
+  max_false_reject_rate: 0.05

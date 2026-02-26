@@ -1,0 +1,43 @@
+# VoicePage — openWakeWord training config: "cancel"
+# Abort/dismiss keyword. Moderate latency is acceptable.
+
+keyword: cancel
+
+generation:
+  phrases:
+    - "cancel"
+  num_samples_per_phrase: 500
+  speaker_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  speed_variations: [0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15]
+  tts_models:
+    - en_US-lessac-medium
+    - en_US-libritts_r-medium
+    - en_US-amy-medium
+
+hard_negatives:
+  phrases:
+    - "counsel"
+    - "candle"
+    - "channel"
+    - "castle"
+    - "camel"
+    - "cancelled"
+    - "candy"
+  num_samples_per_phrase: 200
+
+training:
+  model_type: "dnn"
+  epochs: 50
+  batch_size: 256
+  learning_rate: 0.001
+  n_feature_frames: 16
+  negative_data_dir: "../negative_data"
+  augmentation:
+    noise_snr_range: [5, 30]
+    room_impulse_response: true
+    time_shift_ms: 50
+
+evaluation:
+  threshold: 0.5
+  max_false_accepts_per_hour: 0.5
+  max_false_reject_rate: 0.05

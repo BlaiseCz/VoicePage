@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoicePage Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f0f23;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    .demo-header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .demo-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #4ecca3;
+    }
+
+    .demo-header .subtitle {
+      font-size: 13px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .demo-nav {
+      display: flex;
+      gap: 8px;
+    }
+
+    .demo-nav a {
+      padding: 8px 16px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.06);
+      color: #ccc;
+      text-decoration: none;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+    .demo-nav a:hover {
+      background: rgba(78, 204, 163, 0.15);
+      color: #4ecca3;
+    }
+
+    .demo-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 32px;
+    }
+
+    .demo-section {
+      margin-bottom: 32px;
+    }
+
+    .demo-section h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #4ecca3;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .demo-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .demo-card p {
+      font-size: 14px;
+      color: #999;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .demo-btn {
+      padding: 10px 20px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      color: #ddd;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .demo-btn:hover {
+      background: rgba(78, 204, 163, 0.12);
+      border-color: #4ecca3;
+      color: #4ecca3;
+    }
+    .demo-btn:active {
+      transform: scale(0.97);
+    }
+
+    .demo-btn-primary {
+      background: #4ecca3;
+      color: #000;
+      border-color: #4ecca3;
+      font-weight: 600;
+    }
+    .demo-btn-primary:hover {
+      background: #3dbb92;
+      color: #000;
+    }
+
+    .demo-btn-danger {
+      border-color: #e74c3c;
+      color: #e74c3c;
+    }
+    .demo-btn-danger:hover {
+      background: rgba(231, 76, 60, 0.12);
+    }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .demo-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      color: #ddd;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .demo-input:focus {
+      border-color: #4ecca3;
+    }
+
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px 6px 0 0;
+      background: rgba(255,255,255,0.04);
+      color: #888;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover, .tab-btn[aria-selected="true"] {
+      background: rgba(78, 204, 163, 0.15);
+      color: #4ecca3;
+    }
+
+    .event-log {
+      background: #0a0a1a;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .event-log .event-entry {
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .event-log .event-type {
+      color: #4ecca3;
+      font-weight: 600;
+    }
+
+    .event-log .event-detail {
+      color: #888;
+    }
+
+    .event-log .event-time {
+      color: #555;
+    }
+
+    .test-panel {
+      background: rgba(78, 204, 163, 0.06);
+      border: 1px dashed rgba(78, 204, 163, 0.3);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .test-panel h3 {
+      font-size: 14px;
+      color: #4ecca3;
+      margin-bottom: 12px;
+    }
+
+    .test-panel p {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 12px;
+    }
+
+    label[for] {
+      font-size: 14px;
+      color: #aaa;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    select {
+      padding: 8px 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.06);
+      color: #ddd;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .notification-area {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99998;
+    }
+
+    .notification {
+      background: #1a1a2e;
+      border: 1px solid rgba(78, 204, 163, 0.3);
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      color: #4ecca3;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      animation: notif-in 0.2s ease-out;
+    }
+
+    @keyframes notif-in {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="demo-header">
+    <div>
+      <h1>VoicePage Demo</h1>
+      <div class="subtitle">Say what you see — local-first voice navigation</div>
+    </div>
+    <nav class="demo-nav">
+      <a href="#" data-voice-label="Home">Home</a>
+      <a href="#" data-voice-label="Dashboard">Dashboard</a>
+      <a href="#" data-voice-label="Settings">Settings</a>
+      <a href="#" data-voice-label="Help">Help</a>
+    </nav>
+  </header>
+
+  <div class="demo-container">
+
+    <!-- Sample UI Elements -->
+    <section class="demo-section">
+      <h2>Interactive Elements</h2>
+      <div class="demo-card">
+        <p>These buttons and controls are voice-addressable. Try typing their labels in the test panel below.</p>
+        <div class="btn-row">
+          <button class="demo-btn demo-btn-primary">Submit</button>
+          <button class="demo-btn">Save Draft</button>
+          <button class="demo-btn">Preview</button>
+          <button class="demo-btn demo-btn-danger">Delete</button>
+        </div>
+      </div>
+
+      <div class="demo-card">
+        <p>Tabs use <code>role="tab"</code> and are voice-addressable.</p>
+        <div class="tab-bar" role="tablist">
+          <button class="tab-btn" role="tab" aria-selected="true">Overview</button>
+          <button class="tab-btn" role="tab">Analytics</button>
+          <button class="tab-btn" role="tab">Reports</button>
+          <button class="tab-btn" role="tab">Export</button>
+        </div>
+      </div>
+
+      <div class="demo-card">
+        <label for="search-input">Search</label>
+        <div class="input-group">
+          <input id="search-input" class="demo-input" type="text" placeholder="Search anything…" />
+          <button class="demo-btn" data-voice-label="Search Button">Go</button>
+        </div>
+      </div>
+
+      <div class="demo-card">
+        <p>Links with developer-provided labels and synonyms:</p>
+        <div class="btn-row">
+          <a href="#" class="demo-btn" data-voice-label="Billing" data-voice-synonyms="invoices, payments">Billing &amp; Invoices</a>
+          <a href="#" class="demo-btn" data-voice-label="Profile" data-voice-synonyms="account, my account">My Profile</a>
+          <a href="#" class="demo-btn" data-voice-label="Notifications">Notifications</a>
+        </div>
+      </div>
+
+      <div class="demo-card">
+        <p>An element marked as high-risk (would require confirmation in a full implementation):</p>
+        <div class="btn-row">
+          <button class="demo-btn demo-btn-danger" data-voice-risk="high">Delete Account</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Test Panel -->
+    <section class="demo-section">
+      <div class="test-panel">
+        <h3>Test Panel (simulate voice input)</h3>
+        <p>
+          Since this prototype uses stub engines, you can test the full pipeline by typing a label below.
+          Click "Start Listening" first (or click the mic indicator), then type a target and press "Simulate Open".
+        </p>
+        <div class="input-group">
+          <input id="test-transcript" class="demo-input" type="text" placeholder='e.g. "submit", "billing", "analytics"' />
+          <button id="btn-simulate" class="demo-btn demo-btn-primary">Simulate Open</button>
+        </div>
+        <div class="btn-row" style="margin-top: 12px">
+          <button id="btn-toggle" class="demo-btn">Start Listening</button>
+          <button id="btn-cancel" class="demo-btn">Cancel</button>
+          <div style="flex:1"></div>
+          <label for="sel-policy" style="display:inline;margin:0;align-self:center;font-size:13px">Policy:</label>
+          <select id="sel-policy">
+            <option value="disambiguate">disambiguate</option>
+            <option value="error">error</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Event Log -->
+    <section class="demo-section">
+      <h2>Event Log</h2>
+      <div id="event-log" class="event-log">
+        <div class="event-entry"><span class="event-detail">Waiting for events…</span></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Notification area for action feedback -->
+  <div id="notification-area" class="notification-area"></div>
+
+  <!-- VoicePage overlay (Web Component) -->
+  <voicepage-overlay id="vp-overlay"></voicepage-overlay>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
