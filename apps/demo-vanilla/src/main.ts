@@ -3,20 +3,75 @@ import {
   StubKwsEngine,
   StubVadEngine,
   StubAsrEngine,
+  AudioPipeline,
+  OwwKwsEngine,
+  SileroVadEngine,
+  WhisperAsrEngine,
   VoicePageEvent,
   CollisionPolicy,
+  IKwsEngine,
+  IVadEngine,
+  IAsrEngine,
 } from 'voicepage-core';
 import { VoicepageOverlay } from 'voicepage-ui';
 
-// --- Initialize stub engines ---
-const kwsEngine = new StubKwsEngine();
-const vadEngine = new StubVadEngine(500); // Short delay for demo
-const asrEngine = new StubAsrEngine();
+// --- Determine mode from URL params ---
+const params = new URLSearchParams(window.location.search);
+const mode = params.get('mode') ?? 'stub'; // 'stub' | 'real'
+const isRealMode = mode === 'real';
+
+// --- Model URLs (relative to public/ directory, served by Vite) ---
+const MODEL_BASE = '/models/kws';
+const VAD_MODEL_URL = '/models/vad/silero_vad.onnx';
+const WHISPER_ENCODER_URL = '/models/whisper/whisper-tiny-encoder.onnx';
+const WHISPER_DECODER_URL = '/models/whisper/whisper-tiny-decoder.onnx';
+const WHISPER_TOKENIZER_URL = '/models/whisper/tokenizer.json';
+
+let kwsEngine: IKwsEngine;
+let vadEngine: IVadEngine;
+let asrEngine: IAsrEngine;
+let audioPipeline: AudioPipeline | undefined;
+
+if (isRealMode) {
+  // --- Real audio pipeline ---
+  // Worklet URL points to the static JS file in public/
+  const WORKLET_URL = '/pcm-processor.worklet.js';
+  audioPipeline = new AudioPipeline(WORKLET_URL);
+
+  kwsEngine = new OwwKwsEngine({
+    melModelUrl: `${MODEL_BASE}/melspectrogram.onnx`,
+    embeddingModelUrl: `${MODEL_BASE}/embedding_model.onnx`,
+    // Using pre-trained OWW keyword models as stand-ins until custom models are trained
+    keywordModelUrls: {
+      open: `${MODEL_BASE}/alexa_v0.1.onnx`,
+      help: `${MODEL_BASE}/hey_jarvis_v0.1.onnx`,
+    },
+    thresholds: { open: 0.5, help: 0.5 },
+  });
+
+  vadEngine = new SileroVadEngine({
+    modelUrl: VAD_MODEL_URL,
+    silenceDurationMs: 1000,
+  });
+
+  asrEngine = new WhisperAsrEngine({
+    encoderModelUrl: WHISPER_ENCODER_URL,
+    decoderModelUrl: WHISPER_DECODER_URL,
+    tokenizerUrl: WHISPER_TOKENIZER_URL,
+    language: 'en',
+    maxTokens: 64, // Short utterances for voice nav
+  });
+} else {
+  // --- Stub engines (no mic, no models) ---
+  kwsEngine = new StubKwsEngine();
+  vadEngine = new StubVadEngine(500); // Short delay for demo
+  asrEngine = new StubAsrEngine();
+}
 
 const engine = new VoicePageEngine(kwsEngine, vadEngine, asrEngine, {
   collisionPolicy: 'disambiguate',
   highlightMs: 400,
-});
+}, audioPipeline);
 
 // --- Connect UI overlay ---
 const overlay = document.getElementById('vp-overlay') as VoicepageOverlay;
@@ -103,13 +158,32 @@ const btnCancel = document.getElementById('btn-cancel') as HTMLButtonElement;
 const testInput = document.getElementById('test-transcript') as HTMLInputElement;
 const selPolicy = document.getElementById('sel-policy') as HTMLSelectElement;
 
+// Mode badge
+const modeBadge = document.getElementById('mode-badge')!;
+if (isRealMode) {
+  modeBadge.textContent = 'Real Audio';
+  modeBadge.style.background = '#4ecca3';
+  modeBadge.style.color = '#000';
+} else {
+  modeBadge.textContent = 'Stub Mode';
+  modeBadge.style.background = 'rgba(255,255,255,0.12)';
+  modeBadge.style.color = '#888';
+}
+
 // Initialize engine
 engine.init().then(() => {
   addLogEntry({
     type: 'EngineError',
     ts: Date.now(),
     code: 'KWS_INIT_FAILED', // Using as a generic log type
-    message: 'Engine initialized (stub mode)',
+    message: `Engine initialized (${isRealMode ? 'real audio' : 'stub'} mode)`,
+  });
+}).catch((err) => {
+  addLogEntry({
+    type: 'EngineError',
+    ts: Date.now(),
+    code: 'KWS_INIT_FAILED',
+    message: `Init failed: ${err instanceof Error ? err.message : String(err)}`,
   });
 });
 

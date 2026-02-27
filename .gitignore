@@ -20,6 +20,9 @@ models/**/*.pb
 models/**/*.h5
 models/**/*.pt
 models/**/*.bin
+**/public/models/**/*.onnx
+**/public/models/**/*.json
+!**/public/models/**/.gitkeep
 datasets/**/*.wav
 datasets/**/*.mp3
 datasets/**/*.flac
@@ -38,6 +41,8 @@ tools/openwakeword/logs/
 tools/openwakeword/**/*.onnx
 tools/openwakeword/**/*.npy
 tools/openwakeword/wandb/
+tools/openwakeword/openwakeword_repo/
+tools/openwakeword/synthetic_speech_generation/
 
 # ========================
 # Secrets / API keys / credentials

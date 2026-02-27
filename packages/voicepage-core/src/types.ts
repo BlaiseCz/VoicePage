@@ -185,6 +185,8 @@ export interface IKwsEngine {
   start(onKeyword: (keyword: Keyword, confidence: number) => void): void;
   stop(): void;
   destroy(): void;
+  /** Feed a single 80ms PCM frame (1280 samples, Float32, 16kHz). Optional — real engines implement this. */
+  processFrame?(frame: Float32Array): Promise<void>;
 }
 
 export interface IVadEngine {
@@ -195,6 +197,8 @@ export interface IVadEngine {
   ): void;
   stopDetection(): void;
   destroy(): void;
+  /** Feed a single 80ms PCM frame (1280 samples, Float32, 16kHz). Optional — real engines implement this. */
+  processFrame?(frame: Float32Array): Promise<void>;
 }
 
 export interface IAsrEngine {

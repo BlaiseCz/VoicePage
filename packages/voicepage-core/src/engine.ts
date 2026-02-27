@@ -14,6 +14,7 @@ import { EventBus } from './event-bus.js';
 import { buildDomIndex, DomIndexResult } from './dom-indexer.js';
 import { resolveTarget, ResolutionResult } from './matcher.js';
 import { determineAction, executeAction } from './action-executor.js';
+import type { AudioPipeline } from './audio/audio-pipeline.js';
 
 let requestCounter = 0;
 function nextRequestId(): string {
@@ -27,6 +28,8 @@ export class VoicePageEngine {
   private kwsEngine: IKwsEngine;
   private vadEngine: IVadEngine;
   private asrEngine: IAsrEngine;
+  private audioPipeline: AudioPipeline | null = null;
+  private unsubFrame: (() => void) | null = null;
 
   private currentRequestId: string | null = null;
   private currentIndex: DomIndexResult | null = null;
@@ -38,17 +41,29 @@ export class VoicePageEngine {
     vadEngine: IVadEngine,
     asrEngine: IAsrEngine,
     config?: Partial<VoicePageConfig>,
+    audioPipeline?: AudioPipeline,
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.eventBus = new EventBus();
     this.kwsEngine = kwsEngine;
     this.vadEngine = vadEngine;
     this.asrEngine = asrEngine;
+    this.audioPipeline = audioPipeline ?? null;
   }
 
   // --- Public API ---
 
   async init(): Promise<void> {
+    // Initialize audio pipeline first (requests mic permission)
+    if (this.audioPipeline) {
+      try {
+        await this.audioPipeline.init();
+      } catch (err) {
+        this.emitError('MIC_NOT_AVAILABLE', 'Failed to initialize audio pipeline', err);
+        throw err;
+      }
+    }
+
     try {
       await this.kwsEngine.init();
     } catch (err) {
@@ -94,11 +109,23 @@ export class VoicePageEngine {
     this.setState('LISTENING_ON');
     this.emit({ type: 'ListeningChanged', ts: Date.now(), enabled: true });
     this.kwsEngine.start(this.handleKeyword.bind(this));
+
+    // Wire audio pipeline frames to KWS engine
+    if (this.audioPipeline && this.kwsEngine.processFrame) {
+      this.audioPipeline.start();
+      const kwsProcess = this.kwsEngine.processFrame.bind(this.kwsEngine);
+      this.unsubFrame = this.audioPipeline.onFrame((frame) => {
+        kwsProcess(frame);
+      });
+    }
   }
 
   stopListening(): void {
     this.cancelCurrentRequest('stop');
     this.kwsEngine.stop();
+    this.unsubFrame?.();
+    this.unsubFrame = null;
+    this.audioPipeline?.stop();
     this.setState('LISTENING_OFF');
     this.emit({ type: 'ListeningChanged', ts: Date.now(), enabled: false });
   }
@@ -164,9 +191,12 @@ export class VoicePageEngine {
 
   destroy(): void {
     this.cancelCurrentRequest('stop');
+    this.unsubFrame?.();
+    this.unsubFrame = null;
     this.kwsEngine.destroy();
     this.vadEngine.destroy();
     this.asrEngine.destroy();
+    this.audioPipeline?.destroy();
     this.eventBus.clear();
   }
 
@@ -238,6 +268,11 @@ export class VoicePageEngine {
       scope: this.currentIndex.scope,
     });
 
+    // Start audio capture if pipeline is available
+    if (this.audioPipeline) {
+      this.audioPipeline.startCapture();
+    }
+
     // Start VAD to detect speech boundaries
     this.vadEngine.startDetection(
       () => {
@@ -248,6 +283,18 @@ export class VoicePageEngine {
         this.finishCapture(requestId, 'vad');
       },
     );
+
+    // Wire audio frames to VAD during capture
+    if (this.audioPipeline && this.vadEngine.processFrame) {
+      const vadProcess = this.vadEngine.processFrame.bind(this.vadEngine);
+      // The KWS frame listener is already running; add VAD frame listener
+      // We store this on the capture timeout so we can clean it up
+      const unsubVad = this.audioPipeline.onFrame((frame) => {
+        vadProcess(frame);
+      });
+      // Store for cleanup
+      (this as any)._unsubVadCapture = unsubVad;
+    }
 
     // Set capture timeout
     this.captureTimeout = setTimeout(() => {
@@ -263,6 +310,16 @@ export class VoicePageEngine {
       this.captureTimeout = null;
     }
     this.vadEngine.stopDetection();
+
+    // Clean up VAD frame listener
+    const unsubVad = (this as any)._unsubVadCapture as (() => void) | undefined;
+    unsubVad?.();
+    (this as any)._unsubVadCapture = undefined;
+
+    // Grab captured audio from pipeline
+    if (this.audioPipeline) {
+      this.capturedAudio = this.audioPipeline.stopCapture();
+    }
 
     this.emit({ type: 'CaptureEnded', ts: Date.now(), requestId, reason });
 

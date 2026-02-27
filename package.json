@@ -6,7 +6,8 @@
     "dev": "pnpm --filter demo-vanilla dev",
     "dev:all": "pnpm -r --parallel dev",
     "typecheck": "pnpm -r --if-present typecheck",
-    "lint": "pnpm -r --if-present lint"
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

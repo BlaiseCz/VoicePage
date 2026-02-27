@@ -11,5 +11,16 @@ export default defineConfig({
   server: {
     port: 3000,
     open: false,
+    headers: {
+      // Required for SharedArrayBuffer (needed by onnxruntime-web WASM threads)
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+  },
+  optimizeDeps: {
+    exclude: ['onnxruntime-web'],
+  },
+  worker: {
+    format: 'es',
   },
 });

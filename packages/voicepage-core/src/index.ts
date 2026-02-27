@@ -7,6 +7,18 @@ export type { MatchResult, ResolutionResult } from './matcher.js';
 export { normalizeLabel } from './normalize.js';
 export { determineAction, executeAction } from './action-executor.js';
 
+// Audio pipeline
+export { AudioPipeline } from './audio/index.js';
+export type { PcmFrameCallback } from './audio/index.js';
+
+// Real engines
+export { OwwKwsEngine } from './engines/index.js';
+export type { OwwKwsEngineOptions } from './engines/index.js';
+export { SileroVadEngine } from './engines/index.js';
+export type { SileroVadEngineOptions } from './engines/index.js';
+export { WhisperAsrEngine } from './engines/index.js';
+export type { WhisperAsrEngineOptions } from './engines/index.js';
+
 // Stubs for development/testing
 export { StubKwsEngine } from './stubs/stub-kws.js';
 export { StubVadEngine } from './stubs/stub-vad.js';

@@ -314,6 +314,75 @@ models/kws/
 
 ---
 
+## Real Audio Pipeline
+
+VoicePage supports two modes: **stub mode** (default, for UI development) and **real audio mode** (live mic + ONNX models).
+
+### Architecture
+
+```
+Microphone → AudioWorklet (resample to 16kHz mono)
+  → 80ms PCM frames (1280 samples)
+    → KWS (openWakeWord ONNX: mel → embedding → classifier)
+    → VAD (Silero VAD ONNX: speech boundary detection)
+    → ASR (Whisper ONNX: encoder → decoder → text)
+```
+
+### Running in real mode
+
+```bash
+# Start the demo with real audio
+pnpm dev
+# Then navigate to: http://localhost:3000?mode=real
+```
+
+### Required model files
+
+Place ONNX models in `apps/demo-vanilla/public/models/`:
+
+```
+public/models/
+├── kws/
+│   ├── melspectrogram.onnx      # Shared mel preprocessor: [1, 1280] → [1, 1, 5, 32]
+│   ├── embedding_model.onnx     # Shared embedding backbone: [1, 76, 32, 1] → [1, 1, 1, 96]
+│   ├── alexa_v0.1.onnx          # Pre-trained keyword classifier (stand-in for "open")
+│   └── hey_jarvis_v0.1.onnx     # Pre-trained keyword classifier (stand-in for "help")
+├── vad/
+│   └── silero_vad.onnx          # Silero VAD v5: state=[2,1,128], sr=scalar int64
+└── whisper/
+    ├── whisper-tiny-encoder.onnx  # Whisper-tiny encoder: [1, 80, 3000] → [1, 1500, 384]
+    ├── whisper-tiny-decoder.onnx  # Whisper-tiny decoder: input_ids + encoder_hidden_states → logits
+    └── tokenizer.json             # Byte-level BPE tokenizer vocab (51865 tokens)
+```
+
+### Obtaining models
+
+- **KWS shared models**: Run `bash tools/openwakeword/setup.sh` to install openWakeWord and copy `melspectrogram.onnx` + `embedding_model.onnx`. Pre-trained keyword classifiers (alexa, hey_jarvis) are included as stand-ins. To train custom keywords, see [Model Training](#openwakeword-model-training) above.
+- **Silero VAD**: Download from [silero-vad releases](https://github.com/snakers4/silero-vad/releases) tag `v5.1.2` → `silero_vad.onnx`
+- **Whisper**: Download from [onnx-community/whisper-tiny](https://huggingface.co/onnx-community/whisper-tiny) on Hugging Face → `onnx/encoder_model.onnx`, `onnx/decoder_model.onnx`, `tokenizer.json`
+
+### Components
+
+| File | Purpose |
+|---|---|
+| `audio/pcm-processor.worklet.ts` | AudioWorklet: mic capture, resample to 16kHz, emit 80ms frames |
+| `audio/audio-pipeline.ts` | Manages AudioContext, worklet, frame distribution, capture buffer |
+| `engines/oww-kws-engine.ts` | openWakeWord KWS: mel → embedding → per-keyword classifiers |
+| `engines/silero-vad-engine.ts` | Silero VAD: speech start/end detection from PCM frames |
+| `engines/whisper-asr-engine.ts` | Whisper ASR: log-mel spectrogram → encoder → decoder → text |
+
+### Cross-Origin Headers
+
+Real audio mode requires `SharedArrayBuffer` for ONNX Runtime WASM threading. The Vite config sets:
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+For production deployment, ensure your server sends these headers.
+
+---
+
 ## GitHub Actions CI/CD
 
 ### CI (`.github/workflows/ci.yml`)
