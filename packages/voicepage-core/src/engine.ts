@@ -35,6 +35,7 @@ export class VoicePageEngine {
   private currentIndex: DomIndexResult | null = null;
   private capturedAudio: Float32Array | null = null;
   private captureTimeout: ReturnType<typeof setTimeout> | null = null;
+  private pendingConfirmation: { requestId: string; target: DomTarget } | null = null;
 
   constructor(
     kwsEngine: IKwsEngine,
@@ -176,6 +177,40 @@ export class VoicePageEngine {
   }
 
   /**
+   * Confirm a pending high-risk action (called by UI after ConfirmationRequired).
+   */
+  async confirmAction(): Promise<void> {
+    if (this.state !== 'AWAITING_CONFIRMATION' || !this.pendingConfirmation) return;
+    const { requestId, target } = this.pendingConfirmation;
+    this.pendingConfirmation = null;
+    this.setState('EXECUTING');
+    const action = determineAction(target);
+    const result = executeAction(target, action);
+    this.emit({
+      type: 'ActionExecuted',
+      ts: Date.now(),
+      requestId,
+      action,
+      targetId: target.id,
+      ok: result.ok,
+      error: result.error,
+    });
+    if (!result.ok) {
+      this.emitError('EXECUTION_FAILED', result.error ?? 'Action execution failed');
+    }
+    this.returnToListening();
+  }
+
+  /**
+   * Cancel a pending high-risk action (called by UI after ConfirmationRequired).
+   */
+  cancelConfirmation(): void {
+    if (this.state !== 'AWAITING_CONFIRMATION' || !this.pendingConfirmation) return;
+    this.pendingConfirmation = null;
+    this.returnToListening();
+  }
+
+  /**
    * Select a specific target from disambiguation (called by UI).
    */
   async selectDisambiguationTarget(targetId: string): Promise<void> {
@@ -191,6 +226,7 @@ export class VoicePageEngine {
 
   destroy(): void {
     this.cancelCurrentRequest('stop');
+    this.pendingConfirmation = null;
     this.unsubFrame?.();
     this.unsubFrame = null;
     this.kwsEngine.destroy();
@@ -379,7 +415,9 @@ export class VoicePageEngine {
         });
         this.setState('EXECUTING');
         await this.proposeAndExecute(requestId, match.target);
-        this.returnToListening();
+        if (this.state !== 'AWAITING_CONFIRMATION') {
+          this.returnToListening();
+        }
         break;
       }
       case 'ambiguous':
@@ -435,6 +473,21 @@ export class VoicePageEngine {
       risk: target.risk,
     });
 
+    // High-risk confirmation gate: pause and wait for explicit user confirmation
+    if (target.risk === 'high') {
+      this.setState('AWAITING_CONFIRMATION');
+      this.pendingConfirmation = { requestId, target };
+      this.emit({
+        type: 'ConfirmationRequired',
+        ts: Date.now(),
+        requestId,
+        action,
+        targetId: target.id,
+        label: target.normalizedLabel,
+      });
+      return; // Execution paused — will resume via confirmAction() or cancelConfirmation()
+    }
+
     // Highlight delay (UI subscribes and renders highlight)
     await this.delay(this.config.highlightMs);
 
@@ -460,6 +513,9 @@ export class VoicePageEngine {
   private cancelCurrentRequest(reason: 'stop' | 'cancel'): void {
     if (this.currentRequestId && (this.state === 'CAPTURING_TARGET' || this.state === 'TRANSCRIBING')) {
       this.finishCapture(this.currentRequestId, reason);
+    }
+    if (this.state === 'AWAITING_CONFIRMATION') {
+      this.pendingConfirmation = null;
     }
     if (this.captureTimeout) {
       clearTimeout(this.captureTimeout);

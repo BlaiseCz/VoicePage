@@ -1,0 +1,48 @@
+# openWakeWord training dependencies
+# Install with: pip install -r requirements-train.txt
+#
+# NOTE: openWakeWord itself is installed as editable from the cloned repo
+# by setup.sh (pip install -e openwakeword_repo). Do NOT install from PyPI
+# when training — the repo version includes train.py and data utilities.
+
+# Core
+onnxruntime
+numpy<2
+scipy
+librosa
+soundfile
+pyyaml
+tqdm
+piper-tts
+
+# Training (PyTorch) — pin to 2.4.x for speechbrain compatibility
+torch>=2.0,<2.5
+torchaudio>=2.0,<2.5
+torchinfo
+torchmetrics
+
+# Audio augmentation
+audiomentations
+torch-audiomentations
+acoustics
+webrtcvad
+
+# Speech processing
+speechbrain>=1.0
+pronouncing
+deep-phonemizer
+
+# Data
+datasets>=2.14,<4
+mutagen
+
+# ONNX export
+onnx
+
+# Misc (needed by older pronouncing)
+setuptools<70
+
+# Optional: TensorFlow for tflite conversion
+# tensorflow-cpu
+# tensorflow_probability
+# onnx_tf

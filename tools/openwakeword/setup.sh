@@ -3,8 +3,8 @@ set -euo pipefail
 
 # ============================================================
 # VoicePage — openWakeWord setup script
-# Creates a Python venv, installs openWakeWord + dependencies,
-# downloads shared models, and validates the environment.
+# Creates a Python venv, installs openWakeWord + full training
+# dependencies, clones required repos, and downloads shared models.
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,8 +12,9 @@ VENV_DIR="$SCRIPT_DIR/venv"
 MODELS_DIR="$SCRIPT_DIR/../../models/kws"
 OWW_REPO="https://github.com/dscripka/openWakeWord.git"
 OWW_DIR="$SCRIPT_DIR/openwakeword_repo"
-SYNTH_REPO="https://github.com/dscripka/synthetic_speech_dataset_generation.git"
-SYNTH_DIR="$SCRIPT_DIR/synthetic_speech_generation"
+PIPER_REPO="https://github.com/rhasspy/piper-sample-generator.git"
+PIPER_DIR="$SCRIPT_DIR/piper-sample-generator"
+PIPER_MODEL_URL="https://github.com/rhasspy/piper-sample-generator/releases/download/v2.0.0/en_US-libritts_r-medium.pt"
 
 echo "============================================"
 echo " VoicePage — openWakeWord Setup"
@@ -54,35 +55,52 @@ fi
 source "$VENV_DIR/bin/activate"
 pip install --upgrade pip setuptools wheel
 
-# --- Install openWakeWord ---
+# --- Install openWakeWord (editable, for training support) ---
 echo ""
-echo "Installing openWakeWord and dependencies..."
-pip install openwakeword
-pip install onnxruntime
-pip install numpy scipy librosa soundfile
-pip install pyyaml tqdm
+echo "Cloning and installing openWakeWord..."
 
-# --- Install TTS for synthetic data generation ---
-echo ""
-echo "Installing TTS tools for synthetic data generation..."
-pip install piper-tts 2>/dev/null || echo "WARN: piper-tts not available, install manually if needed"
-
-# --- Clone openWakeWord repo (for training notebooks/scripts) ---
 if [[ ! -d "$OWW_DIR" ]]; then
-  echo ""
-  echo "Cloning openWakeWord repository..."
   git clone --depth 1 "$OWW_REPO" "$OWW_DIR"
-else
-  echo "openWakeWord repo already cloned at $OWW_DIR"
 fi
 
-# --- Clone synthetic speech generation repo ---
-if [[ ! -d "$SYNTH_DIR" ]]; then
-  echo ""
-  echo "Cloning synthetic speech dataset generation..."
-  git clone --depth 1 "$SYNTH_REPO" "$SYNTH_DIR"
+# Apply compatibility patches (piper model arg, argparse defaults, sample rate resampling)
+PATCH_FILE="$SCRIPT_DIR/patches/oww-training-compat.patch"
+if [[ -f "$PATCH_FILE" ]]; then
+  echo "Applying openWakeWord compatibility patches..."
+  pushd "$OWW_DIR" > /dev/null
+  if git apply --check "$PATCH_FILE" 2>/dev/null; then
+    git apply "$PATCH_FILE"
+    echo "  Patches applied successfully."
+  else
+    echo "  Patches already applied or not needed — skipping."
+  fi
+  popd > /dev/null
+fi
+
+pip install -e "$OWW_DIR"
+
+# --- Install training dependencies ---
+echo ""
+echo "Installing training dependencies..."
+pip install -r "$SCRIPT_DIR/requirements-train.txt"
+
+# --- Clone piper-sample-generator (for TTS-based synthetic data) ---
+echo ""
+if [[ ! -d "$PIPER_DIR" ]]; then
+  echo "Cloning piper-sample-generator..."
+  git clone --depth 1 "$PIPER_REPO" "$PIPER_DIR"
 else
-  echo "Synthetic speech repo already cloned at $SYNTH_DIR"
+  echo "piper-sample-generator already cloned at $PIPER_DIR"
+fi
+
+# Download the TTS model checkpoint
+if [[ ! -f "$PIPER_DIR/models/en_US-libritts_r-medium.pt" ]]; then
+  echo "Downloading Piper TTS model (en_US-libritts_r-medium)..."
+  mkdir -p "$PIPER_DIR/models"
+  wget -q --show-progress -O "$PIPER_DIR/models/en_US-libritts_r-medium.pt" "$PIPER_MODEL_URL" \
+    || echo "WARN: wget failed; download manually from $PIPER_MODEL_URL"
+else
+  echo "Piper TTS model already present"
 fi
 
 # --- Download shared ONNX models ---
@@ -90,7 +108,6 @@ echo ""
 echo "Downloading shared openWakeWord ONNX models..."
 mkdir -p "$MODELS_DIR"
 
-# These are the shared backbone models from openWakeWord
 python3 -c "
 import openwakeword
 from pathlib import Path
@@ -101,31 +118,36 @@ openwakeword.utils.download_models()
 
 # Find the downloaded model directory
 oww_dir = Path(openwakeword.__file__).parent / 'resources'
+# Also check resources/models subdir
+models_dir = oww_dir / 'models'
+search_dirs = [oww_dir, models_dir] if models_dir.exists() else [oww_dir]
+
 target = Path('$MODELS_DIR')
 target.mkdir(parents=True, exist_ok=True)
 
-# Copy shared models
-for model_file in oww_dir.glob('*.onnx'):
-    dest = target / model_file.name
-    if not dest.exists():
-        shutil.copy2(model_file, dest)
-        print(f'  Copied: {model_file.name}')
-    else:
-        print(f'  Already exists: {model_file.name}')
+for sdir in search_dirs:
+    for model_file in sdir.glob('*.onnx'):
+        dest = target / model_file.name
+        if not dest.exists():
+            shutil.copy2(model_file, dest)
+            print(f'  Copied: {model_file.name}')
+        else:
+            print(f'  Already exists: {model_file.name}')
 
-# Also check for melspectrogram and embedding models
+# Explicitly ensure shared backbone models
 for name in ['melspectrogram.onnx', 'embedding_model.onnx']:
-    src = oww_dir / name
-    if src.exists():
-        dest = target / name
-        shutil.copy2(src, dest)
-        print(f'  Shared model: {name}')
+    for sdir in search_dirs:
+        src = sdir / name
+        if src.exists():
+            dest = target / name
+            shutil.copy2(src, dest)
+            print(f'  Shared model: {name}')
+            break
 " 2>/dev/null || echo "WARN: Could not auto-download shared models. See docs/DEVELOPMENT.md for manual steps."
 
 # --- Create output directories ---
 mkdir -p "$SCRIPT_DIR/output"
-mkdir -p "$SCRIPT_DIR/synthetic_data"
-mkdir -p "$SCRIPT_DIR/negative_data"
+mkdir -p "$SCRIPT_DIR/data"
 mkdir -p "$SCRIPT_DIR/logs"
 
 # --- Validate ---
@@ -140,6 +162,17 @@ import onnxruntime
 print(f'  ONNX Runtime version: {onnxruntime.__version__}')
 import numpy
 print(f'  NumPy version: {numpy.__version__}')
+try:
+    import torch
+    print(f'  PyTorch version: {torch.__version__}')
+    print(f'  CUDA available: {torch.cuda.is_available()}')
+except ImportError:
+    print('  PyTorch: NOT INSTALLED (CPU training only)')
+try:
+    import datasets
+    print(f'  datasets version: {datasets.__version__}')
+except ImportError:
+    print('  datasets: NOT INSTALLED')
 print('  All good!')
 "
 
@@ -150,9 +183,9 @@ echo "============================================"
 echo ""
 echo "Next steps:"
 echo "  1. Activate the venv:  source $VENV_DIR/bin/activate"
-echo "  2. Generate synthetic data:  python train.py generate --keyword open"
-echo "  3. Train a model:            python train.py train --config configs/open.yaml"
-echo "  4. Export ONNX:              python train.py export --keyword open"
-echo "  5. Evaluate:                 python train.py eval --keyword open"
+echo "  2. Download training data:    python train.py setup"
+echo "  3. Check environment:         python train.py status"
+echo "  4. Quick training test:       python train.py all --config configs/oww_open_minimal.yml"
+echo "  5. Full training:             python train.py all --config configs/oww_open.yml"
 echo ""
 echo "See docs/DEVELOPMENT.md for full training documentation."

@@ -27,6 +27,8 @@ vi.mock('../action-executor.js', () => ({
 }));
 
 import { VoicePageEngine } from '../engine.js';
+import { buildDomIndex } from '../dom-indexer.js';
+import { resolveTarget } from '../matcher.js';
 import type {
   IKwsEngine,
   IVadEngine,
@@ -125,7 +127,7 @@ describe('VoicePageEngine', () => {
     });
 
     it('should throw and emit error if KWS init fails', async () => {
-      kws.init.mockRejectedValueOnce(new Error('KWS failed'));
+      (kws.init as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('KWS failed'));
       const engine = createEngine();
       const events = collectEvents(engine);
 
@@ -134,7 +136,7 @@ describe('VoicePageEngine', () => {
     });
 
     it('should throw and emit error if VAD init fails', async () => {
-      vad.init.mockRejectedValueOnce(new Error('VAD failed'));
+      (vad.init as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('VAD failed'));
       const engine = createEngine();
       const events = collectEvents(engine);
 
@@ -143,7 +145,7 @@ describe('VoicePageEngine', () => {
     });
 
     it('should throw and emit error if ASR init fails', async () => {
-      asr.init.mockRejectedValueOnce(new Error('ASR failed'));
+      (asr.init as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('ASR failed'));
       const engine = createEngine();
       const events = collectEvents(engine);
 
@@ -347,6 +349,311 @@ describe('VoicePageEngine', () => {
 
       expect(engine.getState()).toBe('LISTENING_OFF');
       expect(events).toHaveLength(0);
+    });
+  });
+
+  // --- High-risk confirmation flow ---
+
+  describe('high-risk confirmation', () => {
+    const highRiskTarget = {
+      id: 'vp-risk-1',
+      element: { tagName: 'BUTTON', click: vi.fn() } as unknown as Element,
+      rawLabel: 'Delete Account',
+      normalizedLabel: 'delete account',
+      synonyms: [],
+      risk: 'high' as const,
+    };
+
+    function setupMatcherForHighRisk() {
+      vi.mocked(resolveTarget).mockReturnValue({
+        status: 'unique',
+        matches: [{ type: 'exact', target: highRiskTarget, score: 1.0 }],
+      });
+    }
+
+    function setupDomIndexerForHighRisk() {
+      vi.mocked(buildDomIndex).mockReturnValue({
+        targets: [highRiskTarget],
+        scope: 'page' as const,
+      });
+    }
+
+    it('should transition to AWAITING_CONFIRMATION for risk=high targets', async () => {
+      setupMatcherForHighRisk();
+      setupDomIndexerForHighRisk();
+      const engine = createEngine();
+      await engine.init();
+      engine.startListening();
+      const events = collectEvents(engine);
+
+      await engine.simulateTranscript('delete account');
+
+      expect(engine.getState()).toBe('AWAITING_CONFIRMATION');
+      expect(events.some((e) => e.type === 'ConfirmationRequired')).toBe(true);
+      expect(events.some((e) => e.type === 'ActionExecuted')).toBe(false);
+    });
+
+    it('should emit ConfirmationRequired with correct details', async () => {
+      setupMatcherForHighRisk();
+      setupDomIndexerForHighRisk();
+      const engine = createEngine();
+      await engine.init();
+      engine.startListening();
+      const events = collectEvents(engine);
+
+      await engine.simulateTranscript('delete account');
+
+      const confirmEvent = events.find((e) => e.type === 'ConfirmationRequired');
+      expect(confirmEvent).toBeDefined();
+      expect((confirmEvent as any).action).toBe('click');
+      expect((confirmEvent as any).targetId).toBe('vp-risk-1');
+      expect((confirmEvent as any).label).toBe('delete account');
+    });
+
+    it('should execute action on confirmAction()', async () => {
+      setupMatcherForHighRisk();
+      setupDomIndexerForHighRisk();
+      const engine = createEngine();
+      await engine.init();
+      engine.startListening();
+      const events = collectEvents(engine);
+
+      await engine.simulateTranscript('delete account');
+      expect(engine.getState()).toBe('AWAITING_CONFIRMATION');
+
+      await engine.confirmAction();
+
+      expect(engine.getState()).toBe('LISTENING_ON');
+      expect(events.some((e) => e.type === 'ActionExecuted')).toBe(true);
+      const execEvent = events.find((e) => e.type === 'ActionExecuted');
+      expect((execEvent as any).ok).toBe(true);
+    });
+
+    it('should return to listening on cancelConfirmation()', async () => {
+      setupMatcherForHighRisk();
+      setupDomIndexerForHighRisk();
+      const engine = createEngine();
+      await engine.init();
+      engine.startListening();
+      const events = collectEvents(engine);
+
+      await engine.simulateTranscript('delete account');
+      expect(engine.getState()).toBe('AWAITING_CONFIRMATION');
+
+      engine.cancelConfirmation();
+
+      expect(engine.getState()).toBe('LISTENING_ON');
+      expect(events.some((e) => e.type === 'ActionExecuted')).toBe(false);
+    });
+
+    it('should cancel confirmation on cancel() call', async () => {
+      setupMatcherForHighRisk();
+      setupDomIndexerForHighRisk();
+      const engine = createEngine();
+      await engine.init();
+      engine.startListening();
+
+      await engine.simulateTranscript('delete account');
+      expect(engine.getState()).toBe('AWAITING_CONFIRMATION');
+
+      engine.cancel();
+
+      expect(engine.getState()).toBe('LISTENING_ON');
+    });
+
+    it('should do nothing if confirmAction() called when not awaiting', async () => {
+      const engine = createEngine();
+      await engine.init();
+      engine.startListening();
+
+      // Not in AWAITING_CONFIRMATION — should be a no-op
+      await engine.confirmAction();
+      expect(engine.getState()).toBe('LISTENING_ON');
+    });
+
+    it('should do nothing if cancelConfirmation() called when not awaiting', async () => {
+      const engine = createEngine();
+      await engine.init();
+      engine.startListening();
+
+      engine.cancelConfirmation();
+      expect(engine.getState()).toBe('LISTENING_ON');
+    });
+  });
+
+  // --- Disambiguation flow ---
+
+  describe('disambiguation', () => {
+    const deleteTarget1 = {
+      id: 'vp-del-1',
+      element: { tagName: 'BUTTON', click: vi.fn() } as unknown as Element,
+      rawLabel: 'Delete',
+      normalizedLabel: 'delete',
+      synonyms: [],
+    };
+    const deleteTarget2 = {
+      id: 'vp-del-2',
+      element: { tagName: 'BUTTON', click: vi.fn() } as unknown as Element,
+      rawLabel: 'Delete',
+      normalizedLabel: 'delete',
+      synonyms: [],
+    };
+
+    function setupForAmbiguous() {
+      vi.mocked(buildDomIndex).mockReturnValue({
+        targets: [deleteTarget1, deleteTarget2],
+        scope: 'page' as const,
+      });
+      vi.mocked(resolveTarget).mockReturnValue({
+        status: 'ambiguous',
+        matches: [
+          { type: 'exact', target: deleteTarget1, score: 1.0 },
+          { type: 'exact', target: deleteTarget2, score: 1.0 },
+        ],
+      });
+    }
+
+    function setupForMisconfiguration() {
+      vi.mocked(buildDomIndex).mockReturnValue({
+        targets: [deleteTarget1, deleteTarget2],
+        scope: 'page' as const,
+      });
+      vi.mocked(resolveTarget).mockReturnValue({
+        status: 'misconfiguration',
+        matches: [],
+        details: { duplicateLabels: { delete: ['vp-del-1', 'vp-del-2'] } },
+      });
+    }
+
+    it('should emit TargetResolutionFailed with reason=ambiguous for duplicate matches', async () => {
+      setupForAmbiguous();
+      const engine = createEngine({ collisionPolicy: 'disambiguate' });
+      await engine.init();
+      engine.startListening();
+      const events = collectEvents(engine);
+
+      await engine.simulateTranscript('delete');
+
+      const failEvent = events.find((e) => e.type === 'TargetResolutionFailed');
+      expect(failEvent).toBeDefined();
+      expect((failEvent as any).reason).toBe('ambiguous');
+      expect((failEvent as any).details?.candidates).toHaveLength(2);
+    });
+
+    it('should transition to ERROR state on ambiguous result', async () => {
+      setupForAmbiguous();
+      const engine = createEngine({ collisionPolicy: 'disambiguate' });
+      await engine.init();
+      engine.startListening();
+
+      await engine.simulateTranscript('delete');
+
+      expect(engine.getState()).toBe('ERROR');
+    });
+
+    it('should NOT return to LISTENING_ON after ambiguous (waits for disambiguation selection)', async () => {
+      setupForAmbiguous();
+      const engine = createEngine({ collisionPolicy: 'disambiguate' });
+      await engine.init();
+      engine.startListening();
+      const events = collectEvents(engine);
+
+      await engine.simulateTranscript('delete');
+
+      // Should NOT have any ActionExecuted events
+      expect(events.some((e) => e.type === 'ActionExecuted')).toBe(false);
+      // State should still be ERROR (waiting for user to pick a candidate)
+      expect(engine.getState()).toBe('ERROR');
+    });
+
+    it('should execute the selected target via selectDisambiguationTarget', async () => {
+      setupForAmbiguous();
+      const engine = createEngine({ collisionPolicy: 'disambiguate' });
+      await engine.init();
+      engine.startListening();
+      const events = collectEvents(engine);
+
+      await engine.simulateTranscript('delete');
+      expect(engine.getState()).toBe('ERROR');
+
+      // User picks the second delete button
+      await engine.selectDisambiguationTarget('vp-del-2');
+
+      expect(engine.getState()).toBe('LISTENING_ON');
+      const execEvent = events.find((e) => e.type === 'ActionExecuted');
+      expect(execEvent).toBeDefined();
+      expect((execEvent as any).ok).toBe(true);
+      expect((execEvent as any).targetId).toBe('vp-del-2');
+    });
+
+    it('should do nothing if selectDisambiguationTarget is called with unknown id', async () => {
+      setupForAmbiguous();
+      const engine = createEngine({ collisionPolicy: 'disambiguate' });
+      await engine.init();
+      engine.startListening();
+      const events = collectEvents(engine);
+
+      await engine.simulateTranscript('delete');
+      await engine.selectDisambiguationTarget('vp-nonexistent');
+
+      // No ActionExecuted should have been emitted
+      expect(events.some((e) => e.type === 'ActionExecuted')).toBe(false);
+    });
+
+    it('should return to LISTENING_ON on cancel after ambiguous', async () => {
+      setupForAmbiguous();
+      const engine = createEngine({ collisionPolicy: 'disambiguate' });
+      await engine.init();
+      engine.startListening();
+
+      await engine.simulateTranscript('delete');
+      expect(engine.getState()).toBe('ERROR');
+
+      engine.cancel();
+      expect(engine.getState()).toBe('LISTENING_ON');
+    });
+
+    it('should emit TargetResolutionFailed with reason=misconfiguration for error policy', async () => {
+      setupForMisconfiguration();
+      const engine = createEngine({ collisionPolicy: 'error' });
+      await engine.init();
+      engine.startListening();
+      const events = collectEvents(engine);
+
+      await engine.simulateTranscript('delete');
+
+      const failEvent = events.find((e) => e.type === 'TargetResolutionFailed');
+      expect(failEvent).toBeDefined();
+      expect((failEvent as any).reason).toBe('misconfiguration');
+    });
+
+    it('should return to LISTENING_ON after misconfiguration (no disambiguation)', async () => {
+      setupForMisconfiguration();
+      const engine = createEngine({ collisionPolicy: 'error' });
+      await engine.init();
+      engine.startListening();
+
+      await engine.simulateTranscript('delete');
+
+      // misconfiguration calls returnToListening
+      expect(engine.getState()).toBe('LISTENING_ON');
+    });
+
+    it('should emit correct event sequence for ambiguous flow', async () => {
+      setupForAmbiguous();
+      const engine = createEngine({ collisionPolicy: 'disambiguate' });
+      await engine.init();
+      engine.startListening();
+      const events = collectEvents(engine);
+
+      await engine.simulateTranscript('delete');
+
+      const types = events.map((e) => e.type);
+      expect(types).toContain('TargetIndexBuilt');
+      expect(types).toContain('TranscriptReady');
+      expect(types).toContain('TargetResolutionFailed');
+      // TranscriptReady should come before TargetResolutionFailed
+      expect(types.indexOf('TranscriptReady')).toBeLessThan(types.indexOf('TargetResolutionFailed'));
     });
   });
 

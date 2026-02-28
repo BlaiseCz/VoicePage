@@ -231,7 +231,7 @@ VoicePage uses custom [openWakeWord](https://github.com/dscripka/openWakeWord) m
 ### Setup
 
 ```bash
-# One-command setup: creates venv, installs deps, downloads shared models
+# One-command setup: creates venv, installs all training deps, clones repos
 cd tools/openwakeword
 chmod +x setup.sh
 ./setup.sh
@@ -239,64 +239,87 @@ chmod +x setup.sh
 
 This will:
 1. Create a Python virtual environment at `tools/openwakeword/venv/`
-2. Install openWakeWord, ONNX Runtime, TTS tools
-3. Clone the openWakeWord repo (for training notebooks)
-4. Clone the synthetic speech generation repo
+2. Clone and install openWakeWord in editable mode (includes `train.py`)
+3. Install full training dependencies (PyTorch, audiomentations, speechbrain, etc.)
+4. Clone `piper-sample-generator` and download the TTS model checkpoint
 5. Download shared ONNX models (mel-spectrogram + embedding backbone)
+
+### Download training data
+
+After setup, download the required training datasets:
+
+```bash
+source tools/openwakeword/venv/bin/activate
+python tools/openwakeword/train.py setup
+```
+
+This downloads:
+- MIT Room Impulse Responses (for augmentation)
+- Background audio clips from AudioSet (negative data)
+- Precomputed openWakeWord features (~2000 hrs ACAV100M)
+- Validation set features (~11 hrs)
 
 ### Training a keyword
 
 ```bash
-# Activate the venv
 source tools/openwakeword/venv/bin/activate
 
-# Full pipeline for a keyword
-python tools/openwakeword/train.py all --keyword open
+# Quick test (minimal data, 500 steps — validates pipeline works)
+python tools/openwakeword/train.py all --config configs/oww_open_minimal.yml
+
+# Full training (5000 samples, 50000 steps)
+python tools/openwakeword/train.py all --config configs/oww_open.yml
 
 # Or step by step:
-python tools/openwakeword/train.py generate --keyword open
-python tools/openwakeword/train.py train --config tools/openwakeword/configs/open.yaml
-python tools/openwakeword/train.py export --keyword open
-python tools/openwakeword/train.py eval --keyword open
+python tools/openwakeword/train.py generate --config configs/oww_open.yml
+python tools/openwakeword/train.py augment  --config configs/oww_open.yml
+python tools/openwakeword/train.py train    --config configs/oww_open.yml
+python tools/openwakeword/train.py export   --keyword open
+python tools/openwakeword/train.py eval     --keyword open
+```
+
+### Check environment status
+
+```bash
+python tools/openwakeword/train.py status
 ```
 
 ### Training configs
-Each keyword has a YAML config at `tools/openwakeword/configs/<keyword>.yaml`:
 
-| Config | Key settings |
+Two types of configs exist:
+
+**VoicePage keyword configs** (`configs/<keyword>.yaml`) — document keyword-specific settings, phrases, hard negatives, and evaluation thresholds.
+
+**openWakeWord training configs** (`configs/oww_<keyword>.yml`) — passed directly to openWakeWord's `train.py`. These control the actual training pipeline:
+
+| Config | Purpose |
 |---|---|
-| `open.yaml` | Phrases with trailing words, standard thresholds |
-| `click.yaml` | Same pattern as open (alias) |
-| `stop.yaml` | More samples, more epochs, lower threshold (0.4), stricter miss rate |
-| `cancel.yaml` | Standard settings |
-| `help.yaml` | Standard settings, optional in v1 |
+| `oww_open.yml` | Full training config for "open" keyword |
+| `oww_open_minimal.yml` | Quick test config (200 samples, 500 steps) |
 
-### Config structure
+### openWakeWord config structure
 ```yaml
-keyword: open
-generation:
-  phrases: ["open", "open settings", ...]
-  num_samples_per_phrase: 500
-  speed_variations: [0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15]
-hard_negatives:
-  phrases: ["often", "oven", ...]    # Similar-sounding non-keywords
-training:
-  epochs: 50
-  batch_size: 256
-  learning_rate: 0.001
-  augmentation:
-    noise_snr_range: [5, 30]
-    room_impulse_response: true
-evaluation:
-  threshold: 0.5
-  max_false_accepts_per_hour: 0.5
-  max_false_reject_rate: 0.05
+model_name: "open"
+target_phrase: ["open"]
+custom_negative_phrases: ["often", "oven", "over"]
+n_samples: 5000              # synthetic positive samples
+n_samples_val: 1000           # validation samples
+steps: 50000                  # training steps
+model_type: "dnn"
+layer_size: 32
+target_false_positives_per_hour: 0.5
+piper_sample_generator_path: "./piper-sample-generator"
+output_dir: "./output/open"
+rir_paths: ["./data/mit_rirs"]
+background_paths: ["./data/background_clips"]
+feature_data_files:
+  "ACAV100M_sample": "./data/openwakeword_features_ACAV100M_2000_hrs_16bit.npy"
 ```
 
 ### Alternative: Google Colab
 For fastest results without local GPU:
 1. Open the [quick training Colab](https://colab.research.google.com/drive/1q1oe2zOyZp7UsB3jJiQ1IFn8z5YfjwEb)
-2. Upload synthetic data from `tools/openwakeword/synthetic_data/<keyword>/`
+2. Upload synthetic data from `tools/openwakeword/output/<keyword>/`
 3. Download the output `.onnx` to `models/kws/<keyword>.onnx`
 
 ### Model artifacts
@@ -345,8 +368,11 @@ public/models/
 ├── kws/
 │   ├── melspectrogram.onnx      # Shared mel preprocessor: [1, 1280] → [1, 1, 5, 32]
 │   ├── embedding_model.onnx     # Shared embedding backbone: [1, 76, 32, 1] → [1, 1, 1, 96]
-│   ├── alexa_v0.1.onnx          # Pre-trained keyword classifier (stand-in for "open")
-│   └── hey_jarvis_v0.1.onnx     # Pre-trained keyword classifier (stand-in for "help")
+│   ├── open.onnx                # Keyword classifier for "open"
+│   ├── click.onnx               # Keyword classifier for "click"
+│   ├── stop.onnx                # Keyword classifier for "stop"
+│   ├── cancel.onnx              # Keyword classifier for "cancel"
+│   └── help.onnx                # Keyword classifier for "help"
 ├── vad/
 │   └── silero_vad.onnx          # Silero VAD v5: state=[2,1,128], sr=scalar int64
 └── whisper/
@@ -357,7 +383,7 @@ public/models/
 
 ### Obtaining models
 
-- **KWS shared models**: Run `bash tools/openwakeword/setup.sh` to install openWakeWord and copy `melspectrogram.onnx` + `embedding_model.onnx`. Pre-trained keyword classifiers (alexa, hey_jarvis) are included as stand-ins. To train custom keywords, see [Model Training](#openwakeword-model-training) above.
+- **KWS models**: Run `bash tools/openwakeword/setup.sh` to install openWakeWord and download `melspectrogram.onnx` + `embedding_model.onnx`. Then train keyword classifiers with `bash tools/openwakeword/train.sh --minimal` (or without `--minimal` for production quality). Copy all `.onnx` files from `models/kws/` to `apps/demo-vanilla/public/models/kws/`. See [Model Training](#openwakeword-model-training) above.
 - **Silero VAD**: Download from [silero-vad releases](https://github.com/snakers4/silero-vad/releases) tag `v5.1.2` → `silero_vad.onnx`
 - **Whisper**: Download from [onnx-community/whisper-tiny](https://huggingface.co/onnx-community/whisper-tiny) on Hugging Face → `onnx/encoder_model.onnx`, `onnx/decoder_model.onnx`, `tokenizer.json`
 

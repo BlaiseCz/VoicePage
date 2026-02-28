@@ -42,6 +42,7 @@ export type {
   TargetResolutionFailed,
   TargetResolved,
   ActionProposed,
+  ConfirmationRequired,
   ActionExecuted,
   EngineError,
   VoicePageEvent,

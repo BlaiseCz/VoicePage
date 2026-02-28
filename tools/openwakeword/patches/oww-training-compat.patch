@@ -1,0 +1,112 @@
+diff --git a/openwakeword/data.py b/openwakeword/data.py
+index 7a95306..06cd2de 100755
+--- a/openwakeword/data.py
++++ b/openwakeword/data.py
+@@ -677,7 +677,7 @@ def augment_clips(
+                 clip_data = clip_data[0:total_length]
+ 
+             if clip_sr != sr:
+-                raise ValueError("Error! Clip does not have the correct sample rate!")
++                clip_data = torchaudio.functional.resample(clip_data.unsqueeze(0), orig_freq=clip_sr, new_freq=sr).squeeze(0)
+ 
+             clip_data = create_fixed_size_clip(clip_data, total_length, clip_sr)
+ 
+diff --git a/openwakeword/train.py b/openwakeword/train.py
+index 708cdb2..bccd3c4 100755
+--- a/openwakeword/train.py
++++ b/openwakeword/train.py
+@@ -606,35 +606,35 @@ if __name__ == '__main__':
+         "--generate_clips",
+         help="Execute the synthetic data generation process",
+         action="store_true",
+-        default="False",
++        default=False,
+         required=False
+     )
+     parser.add_argument(
+         "--augment_clips",
+         help="Execute the synthetic data augmentation process",
+         action="store_true",
+-        default="False",
++        default=False,
+         required=False
+     )
+     parser.add_argument(
+         "--overwrite",
+         help="Overwrite existing openwakeword features when the --augment_clips flag is used",
+         action="store_true",
+-        default="False",
++        default=False,
+         required=False
+     )
+     parser.add_argument(
+         "--train_model",
+         help="Execute the model training process",
+         action="store_true",
+-        default="False",
++        default=False,
+         required=False
+     )
+     parser.add_argument(
+         "--convert_to_tflite",
+         help="Convert the trained ONNX model to TFLite format",
+         action="store_true",
+-        default="False",
++        default=False,
+         required=False
+     )
+ 
+@@ -645,6 +645,21 @@ if __name__ == '__main__':
+     sys.path.insert(0, os.path.abspath(config["piper_sample_generator_path"]))
+     from generate_samples import generate_samples
+ 
++    # Resolve TTS model path for newer piper-sample-generator (requires 'model' arg)
++    _psg_dir = os.path.abspath(config["piper_sample_generator_path"])
++    _piper_model_path = config.get("piper_model_path", "")
++    if not _piper_model_path:
++        # Auto-discover: look for .pt files in piper-sample-generator/models/
++        _models_dir = os.path.join(_psg_dir, "models")
++        if os.path.isdir(_models_dir):
++            _pt_files = [f for f in os.listdir(_models_dir) if f.endswith(".pt")]
++            if _pt_files:
++                _piper_model_path = os.path.join(_models_dir, _pt_files[0])
++    if not _piper_model_path or not os.path.exists(_piper_model_path):
++        logging.warning(f"Could not find Piper TTS model in {_psg_dir}/models/ — generation may fail")
++    else:
++        logging.info(f"Using Piper TTS model: {_piper_model_path}")
++
+     # Define output locations
+     config["output_dir"] = os.path.abspath(config["output_dir"])
+     if not os.path.exists(config["output_dir"]):
+@@ -675,6 +690,7 @@ if __name__ == '__main__':
+         if n_current_samples <= 0.95*config["n_samples"]:
+             generate_samples(
+                 text=config["target_phrase"], max_samples=config["n_samples"]-n_current_samples,
++                model=_piper_model_path,
+                 batch_size=config["tts_batch_size"],
+                 noise_scales=[0.98], noise_scale_ws=[0.98], length_scales=[0.75, 1.0, 1.25],
+                 output_dir=positive_train_output_dir, auto_reduce_batch_size=True,
+@@ -691,6 +707,7 @@ if __name__ == '__main__':
+         n_current_samples = len(os.listdir(positive_test_output_dir))
+         if n_current_samples <= 0.95*config["n_samples_val"]:
+             generate_samples(text=config["target_phrase"], max_samples=config["n_samples_val"]-n_current_samples,
++                             model=_piper_model_path,
+                              batch_size=config["tts_batch_size"],
+                              noise_scales=[1.0], noise_scale_ws=[1.0], length_scales=[0.75, 1.0, 1.25],
+                              output_dir=positive_test_output_dir, auto_reduce_batch_size=True)
+@@ -712,6 +729,7 @@ if __name__ == '__main__':
+                     include_partial_phrase=1.0,
+                     include_input_words=0.2))
+             generate_samples(text=adversarial_texts, max_samples=config["n_samples"]-n_current_samples,
++                             model=_piper_model_path,
+                              batch_size=config["tts_batch_size"]//7,
+                              noise_scales=[0.98], noise_scale_ws=[0.98], length_scales=[0.75, 1.0, 1.25],
+                              output_dir=negative_train_output_dir, auto_reduce_batch_size=True,
+@@ -735,6 +753,7 @@ if __name__ == '__main__':
+                     include_partial_phrase=1.0,
+                     include_input_words=0.2))
+             generate_samples(text=adversarial_texts, max_samples=config["n_samples_val"]-n_current_samples,
++                             model=_piper_model_path,
+                              batch_size=config["tts_batch_size"]//7,
+                              noise_scales=[1.0], noise_scale_ws=[1.0], length_scales=[0.75, 1.0, 1.25],
+                              output_dir=negative_test_output_dir, auto_reduce_batch_size=True)

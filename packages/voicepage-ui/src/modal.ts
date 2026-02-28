@@ -99,6 +99,31 @@ export class VoicepageModal extends HTMLElement {
     }
   }
 
+  showConfirmation(action: string, label: string, targetId: string): void {
+    this.renderModal(`
+      <h2><span class="vp-tag vp-tag-warn">Confirm Action</span></h2>
+      <p>This action is marked as <strong>high risk</strong>.</p>
+      <p>Action: <span class="vp-transcript">${this.esc(action)}</span> on <span class="vp-transcript">${this.esc(label)}</span></p>
+      <div class="vp-modal-actions">
+        <button class="vp-btn vp-btn-secondary" data-action="cancel">Cancel</button>
+        <button class="vp-btn vp-btn-danger" data-action="confirm" data-target-id="${this.esc(targetId)}">Confirm</button>
+      </div>
+    `);
+
+    // Wire confirm button
+    const confirmBtn = this.shadowRoot!.querySelector('[data-action="confirm"]');
+    confirmBtn?.addEventListener('click', () => {
+      this.close();
+      this.dispatchEvent(
+        new CustomEvent('vp-confirm-action', {
+          bubbles: true,
+          composed: true,
+          detail: { targetId },
+        }),
+      );
+    });
+  }
+
   showMisconfiguration(details: { label?: string; elements?: string[] }): void {
     const elList = (details.elements ?? [])
       .map((e) => `<li style="font-family:monospace;font-size:12px;margin:4px 0">${this.esc(e)}</li>`)

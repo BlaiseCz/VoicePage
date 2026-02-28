@@ -88,6 +88,14 @@ export const MODAL_STYLES = `
     background: rgba(255,255,255,0.2);
   }
 
+  .vp-btn-danger {
+    background: var(--vp-error);
+    color: #fff;
+  }
+  .vp-btn-danger:hover {
+    background: #c0392b;
+  }
+
   .vp-candidate-list {
     list-style: none;
     padding: 0;

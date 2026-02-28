@@ -52,6 +52,10 @@ export class VoicepageOverlay extends HTMLElement {
         this.engine.selectDisambiguationTarget(targetId);
       }
     }) as EventListener);
+
+    this.addEventListener('vp-confirm-action', (() => {
+      this.engine?.confirmAction();
+    }) as EventListener);
   }
 
   disconnectedCallback(): void {
@@ -149,6 +153,10 @@ export class VoicepageOverlay extends HTMLElement {
             break;
           }
         }
+        break;
+
+      case 'ConfirmationRequired':
+        this.modal.showConfirmation(event.action, event.label, event.targetId);
         break;
 
       case 'ActionExecuted':

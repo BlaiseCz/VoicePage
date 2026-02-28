@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/dist
+tools/openwakeword/venv
+tools/openwakeword/data
+tools/openwakeword/output
+tools/openwakeword/logs
+tools/openwakeword/openwakeword_repo
+tools/openwakeword/piper-sample-generator
+tools/openwakeword/synthetic_speech_generation
+.git
+.husky
+*.log

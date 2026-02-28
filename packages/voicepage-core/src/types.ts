@@ -6,6 +6,7 @@ export type EngineState =
   | 'CAPTURING_TARGET'
   | 'TRANSCRIBING'
   | 'RESOLVING_TARGET'
+  | 'AWAITING_CONFIRMATION'
   | 'EXECUTING'
   | 'ERROR';
 
@@ -96,6 +97,14 @@ export interface ActionProposed extends VoicePageEventBase {
   risk?: 'high';
 }
 
+export interface ConfirmationRequired extends VoicePageEventBase {
+  type: 'ConfirmationRequired';
+  requestId: string;
+  action: ActionType;
+  targetId: string;
+  label: string;
+}
+
 export interface ActionExecuted extends VoicePageEventBase {
   type: 'ActionExecuted';
   requestId: string;
@@ -124,6 +133,7 @@ export type VoicePageEvent =
   | TargetResolutionFailed
   | TargetResolved
   | ActionProposed
+  | ConfirmationRequired
   | ActionExecuted
   | EngineError;
 

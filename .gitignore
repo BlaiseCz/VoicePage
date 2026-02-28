@@ -15,11 +15,15 @@ dist/
 # ========================
 # Model artifacts (large binaries)
 # ========================
-models/**/*.onnx
 models/**/*.pb
 models/**/*.h5
 models/**/*.pt
 models/**/*.bin
+# Per-keyword ONNX classifiers are gitignored (trained locally)
+models/kws/*.onnx
+# But allow the shared backbone models to be committed
+!models/kws/melspectrogram.onnx
+!models/kws/embedding_model.onnx
 **/public/models/**/*.onnx
 **/public/models/**/*.json
 !**/public/models/**/.gitkeep
@@ -37,12 +41,16 @@ tools/openwakeword/venv/
 tools/openwakeword/output/
 tools/openwakeword/synthetic_data/
 tools/openwakeword/negative_data/
+tools/openwakeword/data/
 tools/openwakeword/logs/
 tools/openwakeword/**/*.onnx
 tools/openwakeword/**/*.npy
+tools/openwakeword/**/*.pt
 tools/openwakeword/wandb/
 tools/openwakeword/openwakeword_repo/
 tools/openwakeword/synthetic_speech_generation/
+tools/openwakeword/piper-sample-generator/
+tools/openwakeword/my_custom_model/
 
 # ========================
 # Secrets / API keys / credentials

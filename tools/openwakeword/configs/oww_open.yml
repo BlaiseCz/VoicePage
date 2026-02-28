@@ -1,0 +1,64 @@
+# openWakeWord training config for "open" keyword
+# Compatible with: openwakeword/train.py --training_config
+# Docs: https://github.com/dscripka/openWakeWord/blob/main/examples/custom_model.yml
+
+model_name: "open"
+
+target_phrase:
+  - "open"
+
+# Words/phrases that sound similar and should NOT trigger
+custom_negative_phrases:
+  - "often"
+  - "oven"
+  - "opera"
+  - "over"
+  - "opinion"
+  - "opening"
+  - "opponent"
+
+# Synthetic data generation
+n_samples: 5000
+n_samples_val: 1000
+tts_batch_size: 50
+augmentation_batch_size: 16
+
+# Paths (relative to working directory, set at runtime)
+piper_sample_generator_path: "./piper-sample-generator"
+output_dir: "./output/open"
+
+# Room impulse responses
+rir_paths:
+  - "./data/mit_rirs"
+
+# Background noise audio
+background_paths:
+  - "./data/background_clips"
+
+background_paths_duplication_rate:
+  - 1
+
+# Precomputed negative features for false-positive validation
+false_positive_validation_data_path: "./data/validation_set_features.npy"
+
+# Augmentation
+augmentation_rounds: 1
+
+# Precomputed openWakeWord features (negative data)
+feature_data_files:
+  "ACAV100M_sample": "./data/openwakeword_features_ACAV100M_2000_hrs_16bit.npy"
+
+# Batch construction
+batch_n_per_class:
+  "ACAV100M_sample": 1024
+  "adversarial_negative": 50
+  "positive": 50
+
+# Model architecture
+model_type: "dnn"
+layer_size: 32
+
+# Training
+steps: 50000
+max_negative_weight: 1500
+target_false_positives_per_hour: 0.5
