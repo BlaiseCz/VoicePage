@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoicePage Bench — KWS Benchmarks &amp; Training</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0f0f23;
+      --bg-secondary: #1a1a2e;
+      --bg-card: rgba(255,255,255,0.04);
+      --bg-card-hover: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.08);
+      --border-hover: rgba(255,255,255,0.15);
+      --text-primary: #e0e0e0;
+      --text-secondary: #888;
+      --text-muted: #555;
+      --accent: #4ecca3;
+      --accent-dim: rgba(78, 204, 163, 0.15);
+      --danger: #f7768e;
+      --danger-dim: rgba(247, 118, 142, 0.12);
+      --warn: #ff9e64;
+      --info: #45b7d1;
+      --purple: #bb9af7;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Header ────────────────────────────────────────────── */
+
+    .app-header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .app-header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .app-header .subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .back-link {
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      transition: all 0.15s;
+    }
+    .back-link:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* ── Navigation Tabs ───────────────────────────────────── */
+
+    .nav-tabs {
+      display: flex;
+      gap: 2px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+    }
+
+    .nav-tab {
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-family: inherit;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .nav-tab:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.03);
+    }
+    .nav-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* ── Main Container ────────────────────────────────────── */
+
+    .main-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 32px;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    /* ── Metrics Overview Cards ─────────────────────────────── */
+
+    .metrics-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .metric-card--hero {
+      background: linear-gradient(135deg, rgba(26,26,46,0.8), rgba(22,33,62,0.6));
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .metric-target {
+      font-size: 11px;
+      margin-top: 6px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .metric-target.pass {
+      background: rgba(78, 204, 163, 0.15);
+      color: var(--accent);
+    }
+    .metric-target.fail {
+      background: var(--danger-dim);
+      color: var(--danger);
+    }
+    .metric-target.warn {
+      background: rgba(255, 158, 100, 0.15);
+      color: var(--warn);
+    }
+
+    /* ── Section Titles ────────────────────────────────────── */
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      margin: 24px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Tables ────────────────────────────────────────────── */
+
+    .keyword-table-wrap {
+      overflow-x: auto;
+      margin-bottom: 16px;
+    }
+
+    .keyword-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .keyword-table th {
+      text-align: left;
+      padding: 10px 12px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .keyword-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      white-space: nowrap;
+    }
+
+    .keyword-table tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .row-current td {
+      background: rgba(78, 204, 163, 0.06) !important;
+    }
+
+    .cell-pass { color: var(--accent); font-weight: 600; }
+    .cell-warn { color: var(--warn); font-weight: 600; }
+
+    /* ── Keyword Badges ────────────────────────────────────── */
+
+    .kw-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .kw-open   { background: rgba(78,204,163,0.18); color: #4ecca3; }
+    .kw-click  { background: rgba(69,183,209,0.18); color: #45b7d1; }
+    .kw-stop   { background: rgba(247,118,142,0.18); color: #f7768e; }
+    .kw-cancel { background: rgba(255,158,100,0.18); color: #ff9e64; }
+    .kw-help   { background: rgba(187,154,247,0.18); color: #bb9af7; }
+
+    /* ── Charts ────────────────────────────────────────────── */
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .chart-card canvas {
+      width: 100%;
+      height: 280px;
+    }
+
+    .chart-card--wide {
+      grid-column: 1 / -1;
+    }
+
+    .sweep-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .sweep-controls select,
+    .sweep-controls input[type="range"] {
+      accent-color: var(--accent);
+    }
+
+    .sweep-controls select {
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .sweep-controls input[type="range"] {
+      flex: 1;
+      max-width: 200px;
+    }
+
+    /* ── Training Jobs ─────────────────────────────────────── */
+
+    .job-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: border-color 0.15s;
+    }
+    .job-card:hover {
+      border-color: var(--border-hover);
+    }
+
+    .job-training { border-left: 3px solid var(--accent); }
+    .job-done { border-left: 3px solid var(--accent); opacity: 0.85; }
+    .job-failed { border-left: 3px solid var(--danger); }
+    .job-queued { border-left: 3px solid var(--text-muted); }
+    .job-generating, .job-augmenting { border-left: 3px solid var(--info); }
+    .job-exporting, .job-evaluating { border-left: 3px solid var(--purple); }
+
+    .job-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .job-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .job-id {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    .job-status-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-queued { background: rgba(255,255,255,0.08); color: var(--text-secondary); }
+    .status-generating, .status-augmenting { background: rgba(69,183,209,0.15); color: var(--info); }
+    .status-training { background: var(--accent-dim); color: var(--accent); }
+    .status-exporting, .status-evaluating { background: rgba(187,154,247,0.15); color: var(--purple); }
+    .status-done { background: var(--accent-dim); color: var(--accent); }
+    .status-failed { background: var(--danger-dim); color: var(--danger); }
+
+    .job-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .job-progress {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+
+    .progress-text {
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 600;
+      min-width: 36px;
+      text-align: right;
+    }
+
+    .job-step {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    .job-metrics {
+      display: flex;
+      gap: 16px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .mini-metric {
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: rgba(255,255,255,0.04);
+      padding: 3px 10px;
+      border-radius: 4px;
+    }
+    .mini-metric b {
+      color: var(--accent);
+    }
+
+    .job-error {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: var(--danger-dim);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--danger);
+    }
+
+    .job-logs-toggle {
+      margin-top: 10px;
+    }
+    .job-logs-toggle summary {
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .job-logs-toggle summary:hover {
+      color: var(--text-secondary);
+    }
+    .job-logs {
+      margin-top: 8px;
+      padding: 10px;
+      background: #0a0a1a;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      color: var(--text-secondary);
+      overflow-x: auto;
+      max-height: 200px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    /* ── Forms ─────────────────────────────────────────────── */
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-grid--dense {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-group--wide {
+      grid-column: 1 / -1;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .form-group select,
+    .form-group input {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-group select:focus,
+    .form-group input:focus {
+      border-color: var(--accent);
+    }
+
+    .custom-params {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .custom-params h4 {
+      font-size: 13px;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    /* ── Buttons ───────────────────────────────────────────── */
+
+    .btn {
+      padding: 10px 20px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .btn:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+    .btn-primary:hover {
+      background: #3dbb92;
+    }
+
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--accent);
+      border-color: rgba(78,204,163,0.3);
+    }
+    .btn-secondary:hover {
+      background: var(--accent-dim);
+    }
+
+    .btn-danger {
+      color: var(--danger);
+      border-color: rgba(247,118,142,0.3);
+    }
+    .btn-danger:hover {
+      background: var(--danger-dim);
+    }
+
+    .btn-small {
+      padding: 5px 12px;
+      font-size: 12px;
+    }
+
+    /* ── Workers ───────────────────────────────────────────── */
+
+    .worker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 12px;
+    }
+
+    .worker-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .worker-status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+    .worker-status-dot.status-online { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+    .worker-status-dot.status-busy { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+    .worker-status-dot.status-offline { background: var(--text-muted); }
+
+    .worker-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .worker-host {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+    }
+    .worker-gpu {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+    .worker-job {
+      font-size: 11px;
+      color: var(--accent);
+      margin-top: 4px;
+    }
+
+    /* ── Datasets ──────────────────────────────────────────── */
+
+    .dataset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .dataset-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .dataset-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .dataset-size {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .dataset-stats {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 10px;
+    }
+
+    .dataset-stat {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .dataset-bar {
+      height: 4px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .dataset-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .dataset-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .shared-data-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .shared-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .shared-icon {
+      font-size: 24px;
+    }
+
+    .shared-name {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .shared-count {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .dataset-footer {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .help-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+
+    /* ── Toast ─────────────────────────────────────────────── */
+
+    .toast-area {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: var(--bg-secondary);
+      border: 1px solid rgba(78,204,163,0.3);
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 13px;
+      color: var(--accent);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      animation: toast-in 0.2s ease-out;
+    }
+
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ── Data Mode Badge ────────────────────────────────────── */
+
+    .data-mode {
+      margin-bottom: 16px;
+    }
+
+    .data-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .data-live {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+    .data-mock {
+      background: rgba(255,255,255,0.06);
+      color: var(--text-muted);
+    }
+
+    /* ── Responsive ────────────────────────────────────────── */
+
+    @media (max-width: 768px) {
+      .chart-grid { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid--dense { grid-template-columns: repeat(2, 1fr); }
+      .shared-data-grid { grid-template-columns: 1fr; }
+      .app-header { padding: 12px 16px; }
+      .main-container { padding: 16px; }
+      .nav-tabs { padding: 0 16px; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div>
+      <h1>VoicePage Bench</h1>
+      <div class="subtitle">KWS Benchmarks &middot; Training Jobs &middot; Dataset Management</div>
+    </div>
+    <div class="header-right">
+      <a href="/" class="back-link">&larr; Demo App</a>
+    </div>
+  </header>
+
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-tab="benchmarks">Benchmarks</button>
+    <button class="nav-tab" data-tab="training">Training</button>
+    <button class="nav-tab" data-tab="datasets">Datasets</button>
+  </nav>
+
+  <div class="main-container">
+
+    <!-- ═══════════════ Benchmarks Tab ═══════════════ -->
+    <div id="tab-benchmarks" class="tab-content">
+      <div id="metrics-cards"></div>
+
+      <div class="chart-grid">
+        <div class="chart-card">
+          <canvas id="chart-det"></canvas>
+        </div>
+        <div class="chart-card">
+          <canvas id="chart-roc"></canvas>
+        </div>
+        <div class="chart-card">
+          <canvas id="chart-summary"></canvas>
+        </div>
+        <div class="chart-card">
+          <canvas id="chart-latency"></canvas>
+        </div>
+        <div class="chart-card">
+          <canvas id="chart-cm"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="sweep-controls">
+            <label>Keyword:</label>
+            <select id="sweep-keyword">
+              <option value="open">open</option>
+              <option value="click">click</option>
+              <option value="stop">stop</option>
+              <option value="cancel">cancel</option>
+              <option value="help">help</option>
+            </select>
+            <label>Threshold:</label>
+            <input id="sweep-threshold" type="range" min="0.05" max="0.95" step="0.01" value="0.5" />
+            <span id="sweep-value">0.50</span>
+          </div>
+          <canvas id="chart-sweep"></canvas>
+        </div>
+      </div>
+
+      <div id="bench-history"></div>
+    </div>
+
+    <!-- ═══════════════ Training Tab ═══════════════ -->
+    <div id="tab-training" class="tab-content">
+      <div id="worker-list"></div>
+      <div id="new-job-form"></div>
+      <h3 class="section-title">Training Jobs</h3>
+      <div id="job-list"></div>
+    </div>
+
+    <!-- ═══════════════ Datasets Tab ═══════════════ -->
+    <div id="tab-datasets" class="tab-content">
+      <div id="dataset-content"></div>
+    </div>
+
+  </div>
+
+  <div id="toast-area" class="toast-area"></div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

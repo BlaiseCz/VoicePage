@@ -4,6 +4,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm --filter demo-vanilla dev",
+    "dev:bench": "pnpm --filter bench dev",
     "dev:all": "pnpm -r --parallel dev",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "pnpm -r --if-present lint",

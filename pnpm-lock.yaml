@@ -21,6 +21,19 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  apps/bench:
+    dependencies:
+      voicepage-core:
+        specifier: workspace:*
+        version: link:../../packages/voicepage-core
+    devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vite:
+        specifier: ^5.4.0
+        version: 5.4.21(@types/node@25.3.1)
+
   apps/demo-vanilla:
     dependencies:
       voicepage-core:
