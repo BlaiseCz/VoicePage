@@ -1,4 +1,11 @@
-## 0.1.0 (2026-02-28)
+## [0.2.0](https://github.com/BlaiseCz/VoicePage/compare/v0.1.0...v0.2.0) (2026-03-01)
+
+
+### Features
+
+* **bench:** add KWS benchmark dashboard, training job GUI, and dataset manager ([e930cf7](https://github.com/BlaiseCz/VoicePage/commit/e930cf7667dd1ef8065dd11c24f79b61423d780e))
+
+## [0.1.0](https://github.com/BlaiseCz/VoicePage/compare/d9ad6b5c4cb3bc42eb0cb29fc95e569af6d96a63...v0.1.0) (2026-02-28)
 
 
 ### Features
