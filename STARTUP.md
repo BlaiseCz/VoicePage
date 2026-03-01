@@ -152,3 +152,6 @@ models/
 - **"SharedArrayBuffer is not defined"** — Server must send `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. Vite dev server sets these automatically.
 - **Models missing warning** — Stub mode still works. Only `?mode=real` needs the ONNX files.
 - **Port 3000 in use** — Vite auto-increments; check terminal output for actual URL.
+- **`ImportError: cannot import name 'sph_harm' from 'scipy.special'`** — The `acoustics` package uses `scipy.special.sph_harm`, which was removed in SciPy 1.14. Pin `scipy<1.14` in `requirements-train.txt` (already done) or reinstall: `pip install 'scipy<1.14'`.
+- **`AttributeError: module 'openwakeword' has no attribute '__version__'`** — Normal when using the editable git install. The setup script handles this gracefully; if you see it elsewhere, use `getattr(openwakeword, '__version__', 'editable-install')`.
+- **`onnxruntime: device_discovery.cc` warnings** — Harmless informational log from ONNX Runtime. Can be ignored.
