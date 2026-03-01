@@ -157,8 +157,13 @@ echo " Validation"
 echo "============================================"
 python3 -c "
 import openwakeword
-print(f'  openWakeWord version: {openwakeword.__version__}')
+print(f'  openWakeWord version: {getattr(openwakeword, \"__version__\", \"editable-install\")}')
+import os, sys
+# Suppress onnxruntime device_discovery.cc warnings
+_stderr = sys.stderr
+sys.stderr = open(os.devnull, 'w')
 import onnxruntime
+sys.stderr = _stderr
 print(f'  ONNX Runtime version: {onnxruntime.__version__}')
 import numpy
 print(f'  NumPy version: {numpy.__version__}')
