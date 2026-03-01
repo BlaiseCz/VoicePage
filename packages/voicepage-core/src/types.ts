@@ -192,7 +192,7 @@ export interface DomTarget {
 
 export interface IKwsEngine {
   init(): Promise<void>;
-  start(onKeyword: (keyword: Keyword, confidence: number) => void): void;
+  start(onKeyword: (keyword: string, confidence: number) => void): void;
   stop(): void;
   destroy(): void;
   /** Feed a single 80ms PCM frame (1280 samples, Float32, 16kHz). Optional — real engines implement this. */

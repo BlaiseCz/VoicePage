@@ -257,15 +257,15 @@ export class VoicePageEngine {
     });
   }
 
-  private handleKeyword(keyword: Keyword, confidence: number): void {
+  private handleKeyword(keyword: string, confidence: number): void {
     this.emit({
       type: 'KeywordDetected',
       ts: Date.now(),
-      keyword,
+      keyword: keyword as Keyword,
       confidence,
     });
 
-    switch (keyword) {
+    switch (keyword as Keyword) {
       case 'open':
       case 'click':
         if (this.state === 'LISTENING_ON') {

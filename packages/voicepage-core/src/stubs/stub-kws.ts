@@ -5,13 +5,13 @@ import { IKwsEngine, Keyword } from '../types.js';
  * Does not perform real keyword spotting — keywords are triggered externally.
  */
 export class StubKwsEngine implements IKwsEngine {
-  private callback: ((keyword: Keyword, confidence: number) => void) | null = null;
+  private callback: ((keyword: string, confidence: number) => void) | null = null;
 
   async init(): Promise<void> {
     // No-op
   }
 
-  start(onKeyword: (keyword: Keyword, confidence: number) => void): void {
+  start(onKeyword: (keyword: string, confidence: number) => void): void {
     this.callback = onKeyword;
   }
 

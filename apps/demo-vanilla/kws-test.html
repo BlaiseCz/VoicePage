@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live KWS Test — openWakeWord</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f0f23;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 { font-size: 22px; font-weight: 700; color: #4ecca3; }
+    header .subtitle { font-size: 13px; color: #888; margin-top: 2px; }
+    header a {
+      font-size: 13px; color: #4ecca3; text-decoration: none;
+      padding: 6px 14px; border-radius: 6px;
+      background: rgba(78,204,163,0.1); transition: background 0.15s;
+    }
+    header a:hover { background: rgba(78,204,163,0.2); }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px;
+      flex: 1;
+      width: 100%;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      font-size: 15px; font-weight: 600; color: #4ecca3;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    /* Status area */
+    .status-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px;
+    }
+    .status-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #555; transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .status-dot.loading { background: #f0c040; animation: pulse 1s infinite; }
+    .status-dot.active  { background: #4ecca3; }
+    .status-dot.error   { background: #e74c3c; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .status-text { font-size: 14px; color: #aaa; }
+
+    /* Big mic button */
+    .mic-area {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 16px; padding: 24px 0;
+    }
+    .mic-btn {
+      width: 100px; height: 100px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .mic-btn:hover { border-color: #4ecca3; background: rgba(78,204,163,0.08); }
+    .mic-btn.listening {
+      border-color: #4ecca3;
+      background: rgba(78,204,163,0.1);
+      box-shadow: 0 0 30px rgba(78,204,163,0.15);
+    }
+    .mic-btn.listening::after {
+      content: '';
+      position: absolute; inset: -8px;
+      border-radius: 50%;
+      border: 2px solid rgba(78,204,163,0.3);
+      animation: mic-ring 1.5s infinite;
+    }
+    @keyframes mic-ring {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.3); opacity: 0; }
+    }
+    .mic-btn svg { width: 40px; height: 40px; fill: #888; transition: fill 0.2s; }
+    .mic-btn.listening svg { fill: #4ecca3; }
+    .mic-label { font-size: 13px; color: #666; }
+
+    /* Audio visualization */
+    .viz-card canvas {
+      width: 100%; border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: #0a0a1a;
+    }
+    .viz-label {
+      font-size: 11px; color: #555; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 6px; margin-top: 14px;
+    }
+    .viz-label:first-child { margin-top: 0; }
+    .debug-info {
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 11px; color: #555; line-height: 1.8;
+      margin-top: 12px; padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .debug-info span { color: #4ecca3; font-weight: 600; }
+
+    /* Score meter */
+    .score-section { margin-top: 8px; }
+    .score-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 10px;
+    }
+    .score-keyword {
+      font-size: 14px; font-weight: 600; color: #ddd;
+      width: 100px; text-align: right;
+    }
+    .score-bar-track {
+      flex: 1; height: 28px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 6px; overflow: hidden;
+      position: relative;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .score-bar-fill {
+      height: 100%; width: 0%; border-radius: 6px;
+      background: linear-gradient(90deg, #1a3a2e, #4ecca3);
+      transition: width 0.08s linear, background 0.15s;
+      position: relative;
+    }
+    .score-bar-fill.hot {
+      background: linear-gradient(90deg, #4ecca3, #f0c040);
+    }
+    .score-bar-fill.detected {
+      background: linear-gradient(90deg, #4ecca3, #2ecc71);
+    }
+    .score-value {
+      font-size: 13px; font-weight: 600; color: #888;
+      width: 52px; text-align: right; font-variant-numeric: tabular-nums;
+    }
+    .threshold-line {
+      position: absolute; top: 0; bottom: 0; width: 2px;
+      background: rgba(231, 76, 60, 0.6);
+      z-index: 1;
+    }
+
+    /* Threshold control */
+    .threshold-control {
+      display: flex; align-items: center; gap: 12px;
+      margin-top: 16px; padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .threshold-control label {
+      font-size: 13px; color: #888; white-space: nowrap;
+    }
+    .threshold-control input[type="range"] {
+      flex: 1; accent-color: #4ecca3;
+    }
+    .threshold-control .threshold-val {
+      font-size: 13px; font-weight: 600; color: #e74c3c;
+      width: 40px; text-align: right;
+    }
+
+    /* Detection flash */
+    .detection-flash {
+      position: fixed; inset: 0;
+      background: rgba(78, 204, 163, 0.08);
+      pointer-events: none; opacity: 0;
+      transition: opacity 0.1s;
+      z-index: 9999;
+    }
+    .detection-flash.active {
+      opacity: 1;
+      animation: flash-out 0.6s forwards;
+    }
+    @keyframes flash-out {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Detection log */
+    .detection-log {
+      background: #0a0a1a;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 12px;
+      max-height: 240px;
+      overflow-y: auto;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 12px;
+      line-height: 1.8;
+    }
+    .detection-log .log-entry {
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      display: flex; gap: 8px;
+    }
+    .log-time { color: #555; }
+    .log-keyword { color: #4ecca3; font-weight: 600; }
+    .log-score { color: #f0c040; }
+    .log-info { color: #666; }
+    .log-placeholder { color: #444; }
+
+    /* Stats */
+    .stats-row {
+      display: flex; gap: 24px; margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .stat { text-align: center; }
+    .stat-value { font-size: 24px; font-weight: 700; color: #4ecca3; }
+    .stat-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+    /* Frames/sec indicator */
+    .perf-bar {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 12px; color: #555;
+      margin-top: 12px;
+    }
+    .perf-bar span { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>Live KWS Test</h1>
+      <div class="subtitle">openWakeWord — pre-trained "Hey Mycroft" model, real-time in-browser</div>
+    </div>
+    <a href="/">Back to Demo</a>
+  </header>
+
+  <div class="container">
+
+    <!-- Init Status -->
+    <div class="card">
+      <h2>Engine Status</h2>
+      <div class="status-row">
+        <div id="status-dot" class="status-dot"></div>
+        <span id="status-text" class="status-text">Click mic to initialize &amp; start</span>
+      </div>
+      <div id="model-info" style="font-size:12px;color:#555;line-height:1.8">
+        Models: melspectrogram.onnx, embedding_model.onnx, hey_mycroft_v0.1.onnx<br>
+        Pipeline: mic → 16kHz resample → 80ms frames → mel → embedding → classifier
+      </div>
+    </div>
+
+    <!-- Mic Button -->
+    <div class="card">
+      <div class="mic-area">
+        <button id="mic-btn" class="mic-btn" title="Start / Stop listening">
+          <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+        </button>
+        <span id="mic-label" class="mic-label">Click to start</span>
+      </div>
+    </div>
+
+    <!-- Audio Visualization -->
+    <div class="card viz-card">
+      <h2>Audio Input</h2>
+      <div class="viz-label">Waveform (real-time PCM)</div>
+      <canvas id="waveform-canvas" height="80"></canvas>
+      <div class="viz-label">Spectrogram (scrolling)</div>
+      <canvas id="spectrogram-canvas" height="140"></canvas>
+      <div class="debug-info" id="debug-info">
+        Frames received: <span id="dbg-frames">0</span> |
+        Sample rate: <span id="dbg-srate">—</span> |
+        RMS: <span id="dbg-rms">0.000</span> |
+        Peak: <span id="dbg-peak">0.000</span> |
+        Mel buf: <span id="dbg-mel">0</span> |
+        Emb buf: <span id="dbg-emb">0</span>
+      </div>
+    </div>
+
+    <!-- Live Score Meter -->
+    <div class="card">
+      <h2>Live Score</h2>
+      <div class="score-section">
+        <div class="score-row" id="score-row-alexa">
+          <span class="score-keyword">hey_mycroft</span>
+          <div class="score-bar-track">
+            <div class="threshold-line" id="threshold-line" style="left:50%"></div>
+            <div class="score-bar-fill" id="score-bar-alexa"></div>
+          </div>
+          <span class="score-value" id="score-val-alexa">0.000</span>
+        </div>
+      </div>
+
+      <div class="threshold-control">
+        <label for="threshold-slider">Threshold:</label>
+        <input type="range" id="threshold-slider" min="0.05" max="0.95" step="0.01" value="0.50" />
+        <span class="threshold-val" id="threshold-val">0.50</span>
+      </div>
+
+      <div class="perf-bar">
+        <span>Frames/sec: <strong id="fps-val">0</strong></span>
+        <span>Latency: <strong id="latency-val">0</strong>ms</span>
+      </div>
+    </div>
+
+    <!-- Detection Log -->
+    <div class="card">
+      <h2>Detection Log</h2>
+      <div id="detection-log" class="detection-log">
+        <div class="log-entry"><span class="log-placeholder">Waiting for detections...</span></div>
+      </div>
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-value" id="stat-detections">0</div>
+          <div class="stat-label">Detections</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-avg-score">—</div>
+          <div class="stat-label">Avg Score</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-max-score">—</div>
+          <div class="stat-label">Max Score</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-uptime">0s</div>
+          <div class="stat-label">Uptime</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Detection flash overlay -->
+  <div id="detection-flash" class="detection-flash"></div>
+
+  <script type="module" src="/src/kws-test.ts"></script>
+</body>
+</html>

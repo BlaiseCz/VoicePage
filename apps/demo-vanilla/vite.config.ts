@@ -8,6 +8,14 @@ export default defineConfig({
       'voicepage-ui': path.resolve(__dirname, '../../packages/voicepage-ui/src/index.ts'),
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        'kws-test': path.resolve(__dirname, 'kws-test.html'),
+      },
+    },
+  },
   server: {
     port: 3000,
     open: false,

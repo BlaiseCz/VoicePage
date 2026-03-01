@@ -46,7 +46,10 @@ export class AudioPipeline {
       },
     });
 
-    this.context = new AudioContext({ sampleRate: this.stream.getAudioTracks()[0].getSettings().sampleRate ?? 48000 });
+    // Let the browser pick its default sample rate — the worklet resamples to 16kHz.
+    // Forcing a specific rate can cause "different sample-rate" errors in Firefox
+    // when connecting the MediaStreamSource.
+    this.context = new AudioContext();
 
     // Load the AudioWorklet processor
     const url = workletUrl ?? this.workletUrl ?? new URL('./pcm-processor.worklet.js', import.meta.url).href;

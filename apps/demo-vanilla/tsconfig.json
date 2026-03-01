@@ -2,7 +2,12 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "voicepage-core": ["../../packages/voicepage-core/src/index.ts"],
+      "voicepage-ui": ["../../packages/voicepage-ui/src/index.ts"]
+    }
   },
   "include": ["src"]
 }
