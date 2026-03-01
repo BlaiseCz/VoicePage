@@ -71,11 +71,20 @@ PATCH_FILE="$SCRIPT_DIR/patches/oww-training-compat.patch"
 if [[ -f "$PATCH_FILE" ]]; then
   echo "Applying openWakeWord compatibility patches..."
   pushd "$OWW_DIR" > /dev/null
+  # Reset repo to clean state so patch applies reliably on re-runs
+  git checkout -- . 2>/dev/null || true
   if git apply --check "$PATCH_FILE" 2>/dev/null; then
     git apply "$PATCH_FILE"
     echo "  Patches applied successfully."
   else
-    echo "  Patches already applied or not needed — skipping."
+    # Verify critical patch content is present (model arg in generate_samples calls)
+    if grep -q "model=_piper_model_path" openwakeword/train.py 2>/dev/null; then
+      echo "  Patches already applied — skipping."
+    else
+      echo "ERROR: Patch failed to apply and critical changes are missing!"
+      echo "  Try: rm -rf $OWW_DIR && re-run setup.sh"
+      exit 1
+    fi
   fi
   popd > /dev/null
 fi
