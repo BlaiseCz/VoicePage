@@ -1,3 +1,10 @@
+## [0.3.1](https://github.com/BlaiseCz/VoicePage/compare/v0.3.0...v0.3.1) (2026-03-01)
+
+
+### Bug Fixes
+
+* **tools:** handle missing __version__ and suppress onnxruntime warnings in setup.sh ([2468d2c](https://github.com/BlaiseCz/VoicePage/commit/2468d2c73d1c58524b66ea0600259894c430ebd9))
+
 ## [0.3.0](https://github.com/BlaiseCz/VoicePage/compare/v0.2.0...v0.3.0) (2026-03-01)
 
 
