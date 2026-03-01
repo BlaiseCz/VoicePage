@@ -55,6 +55,9 @@ fi
 source "$VENV_DIR/bin/activate"
 pip install --upgrade pip setuptools wheel
 
+# Suppress onnxruntime GPU device_discovery.cc warnings (harmless on machines without GPU)
+export ORT_LOG_LEVEL=3
+
 # --- Install openWakeWord (editable, for training support) ---
 echo ""
 echo "Cloning and installing openWakeWord..."
@@ -82,7 +85,7 @@ pip install -e "$OWW_DIR"
 # --- Install training dependencies ---
 echo ""
 echo "Installing training dependencies..."
-pip install -r "$SCRIPT_DIR/requirements-train.txt"
+pip install --upgrade -r "$SCRIPT_DIR/requirements-train.txt"
 
 # --- Clone piper-sample-generator (for TTS-based synthetic data) ---
 echo ""

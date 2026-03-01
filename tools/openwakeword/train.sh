@@ -93,6 +93,9 @@ if [[ -z "${VIRTUAL_ENV:-}" ]]; then
   source "$VENV_DIR/bin/activate"
 fi
 
+# Suppress onnxruntime GPU device_discovery.cc warnings (harmless on machines without GPU)
+export ORT_LOG_LEVEL=3
+
 echo "  Python: $(python3 --version)"
 echo "  venv:   $VIRTUAL_ENV"
 echo ""
