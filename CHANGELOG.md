@@ -1,3 +1,10 @@
+## [0.3.2](https://github.com/BlaiseCz/VoicePage/compare/v0.3.1...v0.3.2) (2026-03-01)
+
+
+### Bug Fixes
+
+* **demo:** add base path for GitHub Pages deployment ([2fc06af](https://github.com/BlaiseCz/VoicePage/commit/2fc06afe8abb7b190e5f0c9ac4068a76bbd89551))
+
 ## [0.3.1](https://github.com/BlaiseCz/VoicePage/compare/v0.3.0...v0.3.1) (2026-03-01)
 
 
