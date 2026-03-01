@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import path from 'path';
 
 export default defineConfig({
+  base: '/VoicePage/',
   resolve: {
     alias: {
       'voicepage-core': path.resolve(__dirname, '../../packages/voicepage-core/src/index.ts'),
