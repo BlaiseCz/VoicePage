@@ -1,3 +1,10 @@
+## [0.3.0](https://github.com/BlaiseCz/VoicePage/compare/v0.2.0...v0.3.0) (2026-03-01)
+
+
+### Features
+
+* **kws:** add live KWS test page with openWakeWord hey_mycroft model ([d2922de](https://github.com/BlaiseCz/VoicePage/commit/d2922de770ee927b6ff8f39aabded397cb9c3cc5))
+
 ## [0.2.0](https://github.com/BlaiseCz/VoicePage/compare/v0.1.0...v0.2.0) (2026-03-01)
 
 
